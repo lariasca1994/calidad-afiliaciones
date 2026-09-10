@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block titulo %}Tablero — Calidad de Afiliaciones{% endblock %}
+{% block contenido %}
+{% set titulos = {
+    "tablero": "Cifras principales",
+    "clasificacion": "Clasificación del trámite",
+    "fuentes": "Aporte y depuración por fuente",
+    "calidad": "Calidad por fuente (%)",
+    "sin_homologar": "Tipos de documento fuera de catálogo",
+} %}
+
+<div class="flex flex-wrap items-center justify-between gap-4 mb-6">
+    <h1 class="text-2xl font-bold">Tablero de indicadores</h1>
+    <a href="/tablero/exportar"
+       class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white bg-mysql hover:bg-mysql-dark transition-colors">
+        ⬇ Exportar CSV
+    </a>
+</div>
+
+<div class="mb-8 p-4 rounded-lg bg-mysql-light/20 dark:bg-mysql-dark/20 border border-mysql/30 text-sm space-y-2">
+    <p class="font-semibold">Cómo leer estos indicadores</p>
+    <p><strong>Duplicidad multicanal vs. interna:</strong> la multicanal cuenta un mismo trámite recibido por más de un canal (correo, presencial, web...); la interna cuenta repeticiones dentro del mismo canal. Distinguirlas importa porque se depuran de forma distinta.</p>
+    <p><strong>Territorio y fecha incompletos</strong> no siempre son un error de captura — pueden reflejar trámites aún en curso o canales que no piden ese dato. Vale la pena mirarlos junto con "registros críticos" antes de concluir nada.</p>
+    <p><strong>Tipos de documento fuera de catálogo</strong> ("sin homologar") es en general el hallazgo más accionable: casi siempre se corrige agregando la equivalencia al catálogo de homologación, no depurando datos.</p>
+</div>
+
+{% for clave, seccion in secciones.items() %}
+<div class="mb-10">
+    <h2 class="font-semibold text-lg mb-3">{{ titulos.get(clave, clave) }}</h2>
+    {% if not seccion.filas %}
+    <p class="text-slate-500 dark:text-slate-400 text-sm">Sin resultados — carga datos con <code>python setup.py</code> (o el generador de datos sintéticos) antes de ver el tablero.</p>
+    {% else %}
+    <div class="overflow-x-auto bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg">
+        <table class="w-full text-sm">
+            <thead class="bg-slate-100 dark:bg-slate-800">
+                <tr>
+                    {% for col in seccion.columnas %}
+                    <th class="text-left px-4 py-2 whitespace-nowrap">{{ col }}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for fila in seccion.filas %}
+                <tr class="border-t border-slate-100 dark:border-slate-800">
+                    {% for col in seccion.columnas %}
+                    <td class="px-4 py-2 whitespace-nowrap">
+                        {%- if fila[col] is none -%}
+                            <span class="text-slate-400">—</span>
+                        {%- elif "pct" in col or col in ("porcentaje", "homologacion", "territorio", "fecha_valida", "participacion", "acumulado") -%}
+                            {{ "%.2f"|format(fila[col]|float) }}%
+                        {%- else -%}
+                            {{ fila[col] }}
+                        {%- endif -%}
+                    </td>
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+</div>
+{% endfor %}
+{% endblock %}

@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{% block titulo %}Calidad de Afiliaciones{% endblock %}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        // Naranja "MySQL" (#F29111, el de su wordmark) como acento de todo
+        // el sitio — así se distingue a simple vista de los demás motores
+        // ya usados en el portafolio: Azure SQL = azul Microsoft
+        // (reservas-corferias), MongoDB = verde esmeralda (ColombiaTech2,
+        // gestor-casos-qa, TaskFlow), PostgreSQL = azul "elefante"
+        // (verificador-api), MySQL = este naranja (calidad-afiliaciones).
+        tailwind.config = {
+            darkMode: ['selector', '[data-tema="oscuro"]'],
+            theme: {
+                extend: {
+                    colors: {
+                        mysql: { DEFAULT: '#F29111', dark: '#D97D0A', light: '#FCB65C' },
+                    },
+                },
+            },
+        };
+    </script>
+    <script>
+        (function () {
+            try {
+                var guardado = localStorage.getItem('calidad-afiliaciones-tema');
+                if (guardado === 'oscuro' || guardado === 'claro') {
+                    document.documentElement.setAttribute('data-tema', guardado);
+                }
+            } catch (e) {}
+        })();
+    </script>
+</head>
+<body class="min-h-full bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 antialiased">
+    <nav class="bg-slate-900 dark:bg-slate-900 text-white px-6 py-3 flex items-center justify-between">
+        <a href="/" class="font-semibold flex items-center gap-2">
+            🐬 Calidad de Afiliaciones
+        </a>
+        <div class="flex items-center gap-5 text-sm">
+            {% if email %}
+                <a href="/tablero" class="hover:text-mysql">Tablero</a>
+                <form action="/logout" method="post" class="inline">
+                    <button type="submit" class="hover:text-mysql">Salir</button>
+                </form>
+            {% else %}
+                <a href="/login" class="hover:text-mysql">Iniciar sesión</a>
+            {% endif %}
+            <button
+                type="button"
+                id="alternar-tema"
+                class="boton-tema text-lg leading-none rounded-full w-8 h-8 flex items-center justify-center border border-white/30 hover:bg-white/10"
+                aria-label="Alternar tema claro/oscuro"
+                title="Alternar tema claro/oscuro"
+            >🌙</button>
+        </div>
+    </nav>
+
+    <main class="{% if centrar %}min-h-[80vh] flex items-center justify-center px-6 py-12{% else %}max-w-6xl mx-auto px-6 py-10{% endif %}">
+        {% block contenido %}{% endblock %}
+    </main>
+
+    <script src="/static/js/tema.js" defer></script>
+</body>
+</html>

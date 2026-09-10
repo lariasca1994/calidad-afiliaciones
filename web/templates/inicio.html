@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block titulo %}Calidad de Afiliaciones — Portafolio{% endblock %}
+{% block contenido %}
+<div class="max-w-3xl mx-auto text-center">
+    <span class="inline-block text-xs font-semibold uppercase tracking-wider bg-mysql/10 text-mysql dark:bg-mysql/20 dark:text-mysql-light rounded-full px-3 py-1 mb-4">
+        Portafolio · Calidad de datos · MySQL
+    </span>
+
+    <h1 class="text-4xl font-bold mb-4">Calidad de Afiliaciones Multicanal</h1>
+
+    <p class="text-lg text-slate-600 dark:text-slate-300 max-w-2xl mx-auto mb-3">
+        Consolidación y análisis de calidad de la producción de afiliaciones de
+        una EPS que recibe trámites por tres canales distintos, más un
+        histórico de radicación y un archivo de novedades laborales — seis
+        fuentes que no hablan entre sí, con tipos de documento distintos,
+        afiliados duplicados entre canales y registros que solo parecen
+        afiliaciones.
+    </p>
+    <p class="text-sm text-slate-500 dark:text-slate-400 max-w-2xl mx-auto mb-8">
+        Pipeline en Python + SQL sobre MySQL (Aiven): carga por lotes,
+        homologación de documentos, deduplicación y vistas de calidad — este
+        panel muestra los mismos indicadores del tablero de consola, en una
+        página.
+    </p>
+
+    <div class="flex flex-wrap justify-center gap-2 mb-10">
+        {% for tech in ["Python", "MySQL (Aiven)", "pandas", "FastAPI", "Power Query", "Power Pivot"] %}
+        <span class="text-xs font-medium bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-full px-3 py-1">{{ tech }}</span>
+        {% endfor %}
+    </div>
+
+    {% if email %}
+        <a href="/tablero" class="inline-block bg-mysql hover:bg-mysql-dark text-white font-semibold rounded px-6 py-3">Ver tablero</a>
+    {% else %}
+        <a href="/login" class="inline-block bg-mysql hover:bg-mysql-dark text-white font-semibold rounded px-6 py-3">Iniciar sesión</a>
+    {% endif %}
+
+    <div class="grid sm:grid-cols-3 gap-4 mt-14 text-left">
+        <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-5">
+            <h3 class="font-semibold mb-1">🔀 Homologación</h3>
+            <p class="text-sm text-slate-600 dark:text-slate-400">Una llave única tipo-número de documento, común a los tres canales y al histórico.</p>
+        </div>
+        <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-5">
+            <h3 class="font-semibold mb-1">🧹 Depuración</h3>
+            <p class="text-sm text-slate-600 dark:text-slate-400">Un registro por afiliado, según prioridad de canal — la duplicidad no está donde se esperaba.</p>
+        </div>
+        <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-5">
+            <h3 class="font-semibold mb-1">📊 Indicadores</h3>
+            <p class="text-sm text-slate-600 dark:text-slate-400">Producción consolidada, duplicidad, calidad por fuente y tendencia — el mismo cálculo que ve Excel vía Power Query.</p>
+        </div>
+    </div>
+</div>
+{% endblock %}

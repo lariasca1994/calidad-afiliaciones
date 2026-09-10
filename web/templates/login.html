@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block titulo %}Iniciar sesión — Calidad de Afiliaciones{% endblock %}
+{% block contenido %}
+<div class="w-full max-w-sm bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg shadow-sm p-8">
+    <h1 class="text-xl font-bold mb-6 text-center">Iniciar sesión</h1>
+    {% if error %}
+    <div class="bg-rose-50 dark:bg-rose-900/30 text-rose-600 dark:text-rose-300 text-sm rounded px-3 py-2 mb-4">{{ error }}</div>
+    {% endif %}
+    <form method="post" action="/login" class="space-y-4">
+        <div>
+            <label class="block text-sm font-medium mb-1">Correo</label>
+            <input type="email" name="email" required
+                   class="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-mysql" />
+        </div>
+        <div>
+            <label class="block text-sm font-medium mb-1">Contraseña</label>
+            <input type="password" name="password" required
+                   class="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-mysql" />
+        </div>
+        <button type="submit" class="w-full bg-mysql hover:bg-mysql-dark text-white font-semibold rounded py-2">Entrar</button>
+    </form>
+</div>
+{% endblock %}

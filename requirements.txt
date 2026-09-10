@@ -1,0 +1,17 @@
+PyMySQL==1.1.1
+cryptography==44.0.0
+python-dotenv==1.0.1
+pandas==2.2.3
+openpyxl==3.1.5
+aiven-client==4.11.0
+
+# --- Panel web (dashboard de indicadores) ---------------------------------
+fastapi==0.115.6
+uvicorn[standard]==0.32.1
+jinja2==3.1.4
+python-multipart==0.0.19
+passlib[bcrypt]==1.7.4
+# Pin explícito: passlib 1.7.4 lee un atributo interno de bcrypt
+# ("__about__.__version__") que las versiones 4.1+ de bcrypt eliminaron.
+bcrypt==4.0.1
+pyjwt==2.10.1

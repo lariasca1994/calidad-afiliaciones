@@ -1,0 +1,70 @@
+# =============================================================================
+# Este proyecto trabaja con documentos de identidad reales. El .gitignore no
+# es un detalle de estilo aqui: es la barrera contra filtrar datos personales
+# amparados por la Ley 1581 de 2012 (Habeas Data). Ante la duda, se excluye.
+# =============================================================================
+
+# --- Secretos --------------------------------------------------------------
+.env
+.env.*
+!.env.example
+*.pem
+*.crt
+*.cer
+*.key
+*.pfx
+*.p12
+credentials.json
+secrets/
+
+# --- Datos de origen y salida ------------------------------------------------
+# Las fuentes de afiliacion contienen documentos, nombres y fechas de
+# nacimiento reales. No se versionan bajo ninguna circunstancia.
+datos/entrada/*
+datos/salida/*
+!datos/entrada/.gitkeep
+!datos/salida/.gitkeep
+
+# Red de seguridad: cualquier CSV, Excel o comprimido queda excluido de raiz,
+# incluso si aparece fuera de las carpetas previstas o con otro nombre.
+*.csv
+*.7z
+*.zip
+*.rar
+*.tar.gz
+
+# --- Excel: el riesgo que no es obvio ---------------------------------------
+# Un libro conectado por Power Query a la tabla `consolidado`, con "Agregar
+# al modelo de datos" activado, GUARDA UNA COPIA COMPLETA de lo consultado
+# dentro del propio archivo .xlsx -incluidos los documentos de identidad-,
+# aunque el libro no tenga ninguna hoja con datos visibles. No hay excepcion
+# segura para ".xlsx" en este proyecto: ni siquiera el archivo de trabajo
+# habitual debe versionarse.
+#
+# Si se quiere compartir la ESTRUCTURA del modelo (medidas DAX, tablas
+# dinamicas, sin datos), la via segura es documentarla en Markdown, no
+# adjuntar el .xlsx.
+*.xlsx
+*.xlsm
+*.xls
+
+# --- Python ------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+
+# --- Editores y sistema --------------------------------------------------
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# --- Varios ------------------------------------------------------------------
+*.log
+*.bak
+*.tmp
