@@ -1,3 +1,4 @@
+import random
 import sys
 from pathlib import Path
 
@@ -8,7 +9,8 @@ from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from proceso import analisis
+from generador import datos_demo
+from proceso import analisis, pipeline
 from proceso.conexion import conectar
 from web.seguridad import (
     NOMBRE_COOKIE,
@@ -22,10 +24,17 @@ app = FastAPI(title="Calidad de Afiliaciones")
 app.mount("/static", StaticFiles(directory="web/static"), name="static")
 plantillas = Jinja2Templates(directory="web/templates")
 
+RAIZ = Path(__file__).resolve().parent.parent
+
 # Misma carpeta que usa `python setup.py` al exportar — así el botón
 # "Exportar CSV" del tablero y la exportación por consola producen
 # siempre el mismo archivo, en el mismo sitio.
-CARPETA_SALIDA = Path(__file__).resolve().parent.parent / "datos" / "salida"
+CARPETA_SALIDA = RAIZ / "datos" / "salida"
+
+# Misma carpeta que lee `python setup.py` al cargar — el botón "Generar
+# datos de ejemplo" escribe aquí y el pipeline lee de aquí mismo, sin
+# pasar por la terminal.
+CARPETA_ENTRADA = RAIZ / "datos" / "entrada"
 
 
 @app.get("/")
@@ -92,6 +101,30 @@ def tablero(request: Request, email: str = Depends(requiere_sesion)):
     return plantillas.TemplateResponse(
         request, "tablero.html", {"email": email, "secciones": secciones}
     )
+
+
+@app.post("/tablero/generar-demo")
+def generar_demo(email: str = Depends(requiere_sesion)):
+    """Un clic: genera un conjunto nuevo de datos sintéticos en
+    datos/entrada (reemplazando lo que hubiera ahí), y encadena el mismo
+    pipeline de `setup.py` (esquema, carga, homologación y consolidado)
+    contra ese contenido. Pensado para explorar el proyecto sin depender
+    de archivos reales ni de la terminal.
+
+    Semilla aleatoria en cada clic (no fija), para que cada generación se
+    vea distinta — a diferencia de `python generador/datos_demo.py`, que
+    por defecto es reproducible.
+    """
+    semilla = random.randint(1, 1_000_000)
+    datos_demo.generar(escala=1.0, semilla=semilla)
+
+    conexion = conectar()
+    try:
+        pipeline.ejecutar(conexion, CARPETA_ENTRADA)
+    finally:
+        conexion.close()
+
+    return RedirectResponse(url="/tablero", status_code=303)
 
 
 @app.get("/tablero/exportar")

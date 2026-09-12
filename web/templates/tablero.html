@@ -11,10 +11,18 @@
 
 <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
     <h1 class="text-2xl font-bold">Tablero de indicadores</h1>
-    <a href="/tablero/exportar"
-       class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white bg-mysql hover:bg-mysql-dark transition-colors">
-        ⬇ Exportar CSV
-    </a>
+    <div class="flex flex-wrap gap-2">
+        <form action="/tablero/generar-demo" method="post">
+            <button type="submit" onclick="return iniciarGeneracion(this)"
+                    class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white bg-mysql hover:bg-mysql-dark transition-colors">
+                🎲 Generar datos de ejemplo
+            </button>
+        </form>
+        <a href="/tablero/exportar"
+           class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white bg-mysql hover:bg-mysql-dark transition-colors">
+            ⬇ Exportar CSV
+        </a>
+    </div>
 </div>
 
 <div class="mb-8 p-4 rounded-lg bg-mysql-light/20 dark:bg-mysql-dark/20 border border-mysql/30 text-sm space-y-2">
@@ -28,7 +36,7 @@
 <div class="mb-10">
     <h2 class="font-semibold text-lg mb-3">{{ titulos.get(clave, clave) }}</h2>
     {% if not seccion.filas %}
-    <p class="text-slate-500 dark:text-slate-400 text-sm">Sin resultados — carga datos con <code>python setup.py</code> (o el generador de datos sintéticos) antes de ver el tablero.</p>
+    <p class="text-slate-500 dark:text-slate-400 text-sm">Sin resultados — usa el botón "Generar datos de ejemplo" de arriba, o carga los tuyos con <code>python setup.py</code> desde la terminal.</p>
     {% else %}
     <div class="overflow-x-auto bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg">
         <table class="w-full text-sm">
@@ -61,4 +69,15 @@
     {% endif %}
 </div>
 {% endfor %}
+
+<script>
+// Deshabilita el botón al enviar el formulario: el pipeline completo
+// (generar + cargar + consolidar) tarda unos segundos, y sin esto un
+// doble clic dispararía dos cargas al tiempo sobre la misma tabla.
+function iniciarGeneracion(boton) {
+    boton.disabled = true;
+    boton.textContent = 'Generando…';
+    return true;
+}
+</script>
 {% endblock %}

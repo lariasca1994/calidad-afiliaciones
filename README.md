@@ -49,7 +49,8 @@ A partir de ahí, el resto queda a criterio de quien lo explore: revisar el SQL
 en `sql/`, leer las decisiones en `docs/decisiones.md`, conectar Excel para
 armar tablas dinámicas sobre la tabla `consolidado` (ver
 [Power Query y Power Pivot](#power-query-y-power-pivot)), o abrir el
-[panel web](#panel-web-opcional).
+[panel web](#panel-web-opcional) y generar los datos de ejemplo con un clic,
+sin pasar por la terminal.
 
 ---
 
@@ -117,7 +118,10 @@ proceso/
 ├── fuentes.py              Separador y codificación de cada archivo
 ├── carga.py                Carga por lotes
 ├── esquema.py              Ejecución de los .sql
-└── analisis.py             Indicadores y exportación
+├── analisis.py             Indicadores y exportación
+└── pipeline.py             Esquema + carga + consolidado en una función,
+                             usado por el botón "Generar datos de ejemplo"
+                             del panel web
 
 web/                        Panel web opcional (ver más abajo)
 
@@ -200,6 +204,9 @@ muestra los indicadores en pantalla.
 
 La carga tarda unos minutos: son más de 400.000 filas y se insertan por lotes.
 
+Desde el panel web, el mismo camino está disponible en un clic — ver
+[Panel web](#panel-web-opcional).
+
 ### Sobre los archivos de origen
 
 **No están en el repositorio.** Contienen documentos de identidad, nombres y
@@ -248,6 +255,13 @@ uvicorn web.main:app --reload --port 8400
 Abre `http://localhost:8400` — pide iniciar sesión antes de ver el tablero.
 No hay registro público: es un panel de un único usuario, pensado para
 revisar el proyecto sin depender de Excel.
+
+Desde el propio tablero, el botón **🎲 Generar datos de ejemplo** genera un
+conjunto sintético nuevo (semilla aleatoria en cada clic), lo guarda en
+`datos/entrada/` reemplazando lo que hubiera ahí, y recalcula el consolidado
+contra ese contenido — el mismo camino que
+`python generador/datos_demo.py && python setup.py`, sin salir del navegador
+ni tocar una terminal.
 
 ## Power Query y Power Pivot
 
