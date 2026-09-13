@@ -49,19 +49,6 @@ CARPETA_ENTRADA_USUARIOS = RAIZ / "datos" / "entrada_usuarios"
 CARPETA_SALIDA_USUARIOS = RAIZ / "datos" / "salida_usuarios"
 
 
-@app.on_event("startup")
-def _asegurar_tabla_usuarios() -> None:
-    """La tabla `usuarios` la crea normalmente scripts/crear_admin.py,
-    pero con registro público el primer visitante puede llegar antes de
-    que alguien la haya corrido a mano. CREATE TABLE IF NOT EXISTS: no
-    hace nada si ya existe, así que es seguro repetirlo en cada arranque."""
-    conexion = conectar()
-    try:
-        esquema.crear(conexion, RAIZ / "sql" / "05_usuarios.sql")
-    finally:
-        conexion.close()
-
-
 @app.get("/")
 def inicio(request: Request, sesion: dict | None = Depends(sesion_opcional)):
     email = sesion["email"] if sesion else None
@@ -106,6 +93,17 @@ def procesar_registro(
 
     conexion = conectar()
     try:
+        # La tabla `usuarios` la crea normalmente scripts/crear_admin.py,
+        # pero con registro público el primer visitante puede llegar antes
+        # de que alguien la haya corrido a mano. CREATE TABLE IF NOT
+        # EXISTS: no hace nada si ya existe. A propósito NO se hace esto
+        # en un evento de arranque de la app: eso bloquearía el arranque
+        # entero a que la base responda (Aiven puede tardar en despertar
+        # si estaba dormida), y Azure Container Apps mata la revisión por
+        # no volverse "Ready" a tiempo. Aquí, en cambio, ya hay una
+        # conexión abierta para la propia solicitud de registro.
+        esquema.crear(conexion, RAIZ / "sql" / "05_usuarios.sql")
+
         cursor = conexion.cursor()
         try:
             cursor.execute(
