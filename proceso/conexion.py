@@ -40,6 +40,17 @@ def _leer_configuracion() -> dict:
         "database": os.getenv("DB_NAME"),
         "charset": "utf8mb4",
         "connect_timeout": 30,
+        # Sin esto, una consulta que se queda a medias por un corte de
+        # red (frecuente cuando el servidor de la app y el de la base
+        # están en nubes/regiones distintas, como Azure y Aiven aquí) se
+        # queda esperando una respuesta que nunca llega — sin error, sin
+        # log, indefinidamente. connect_timeout solo cubre el saludo
+        # inicial de la conexión; read/write_timeout cubren cada
+        # operación posterior, para que un corte a medio camino termine
+        # en una excepción clara en vez de una solicitud colgada para
+        # siempre.
+        "read_timeout": 60,
+        "write_timeout": 60,
         "autocommit": False,
     }
 

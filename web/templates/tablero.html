@@ -18,12 +18,41 @@
                 🎲 Generar datos de ejemplo
             </button>
         </form>
+        <button type="button" onclick="document.getElementById('form-cargar-propios').classList.toggle('hidden')"
+                class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-mysql border border-mysql hover:bg-mysql/10 transition-colors">
+            📁 Subir mis archivos
+        </button>
         <a href="/tablero/exportar"
            class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white bg-mysql hover:bg-mysql-dark transition-colors">
             ⬇ Exportar CSV
         </a>
     </div>
 </div>
+
+{% if error %}
+<div class="mb-6 p-4 rounded-lg bg-rose-50 dark:bg-rose-900/30 text-rose-600 dark:text-rose-300 text-sm">
+    {{ error }}
+</div>
+{% endif %}
+
+<form id="form-cargar-propios" action="/tablero/cargar-propios" method="post" enctype="multipart/form-data"
+      class="hidden mb-8 p-4 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-3">
+    <p class="text-sm font-semibold">Subir tus propios archivos</p>
+    <p class="text-sm text-slate-500 dark:text-slate-400">
+        Selecciona los 6 archivos exactos que espera el proyecto (deben
+        conservar su nombre original: <code>AFILIACIONES.csv</code>,
+        <code>DIGITAL.csv</code>, <code>SAT.csv</code>,
+        <code>PROCESO_IRL.csv</code>, <code>XML.csv</code> y
+        <code>HOMOLOGACION_DOCUMENTOS.csv</code>). Reemplazan cualquier
+        dato de ejemplo que ya tuvieras en esta cuenta.
+    </p>
+    <input type="file" name="archivos" multiple required accept=".csv"
+           class="block w-full text-sm file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-mysql file:text-white hover:file:bg-mysql-dark" />
+    <button type="submit" onclick="return iniciarGeneracion(this)"
+            class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white bg-mysql hover:bg-mysql-dark transition-colors">
+        Subir y procesar
+    </button>
+</form>
 
 <div class="mb-8 p-4 rounded-lg bg-mysql-light/20 dark:bg-mysql-dark/20 border border-mysql/30 text-sm space-y-2">
     <p class="font-semibold">Cómo leer estos indicadores</p>
@@ -36,7 +65,7 @@
 <div class="mb-10">
     <h2 class="font-semibold text-lg mb-3">{{ titulos.get(clave, clave) }}</h2>
     {% if not seccion.filas %}
-    <p class="text-slate-500 dark:text-slate-400 text-sm">Sin resultados — usa el botón "Generar datos de ejemplo" de arriba, o carga los tuyos con <code>python setup.py</code> desde la terminal.</p>
+    <p class="text-slate-500 dark:text-slate-400 text-sm">Sin resultados — usa el botón "Generar datos de ejemplo", sube tus propios archivos con "Subir mis archivos", o carga los tuyos con <code>python setup.py</code> desde la terminal.</p>
     {% else %}
     <div class="overflow-x-auto bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg">
         <table class="w-full text-sm">

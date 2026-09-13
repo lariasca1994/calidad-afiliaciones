@@ -268,7 +268,18 @@ Desde el tablero, el botón **🎲 Generar datos de ejemplo** genera un conjunto
 sintético nuevo para la cuenta que inició sesión (semilla aleatoria en cada
 clic) y recalcula su consolidado — el mismo camino que
 `python generador/datos_demo.py && python setup.py`, pero acotado a esa
-cuenta y sin salir del navegador ni tocar una terminal.
+cuenta y sin salir del navegador ni tocar una terminal. Usa una escala más
+pequeña que la que genera `python generador/datos_demo.py` por defecto
+(pensada para verse en segundos, no para ser representativa de un volumen
+real): sigue reproduciendo los mismos problemas de calidad, solo que con
+menos filas.
+
+Si en cambio ya tienes tus propios archivos de origen, el botón **📁 Subir
+mis archivos** despliega un formulario para subir los 6 CSV directamente
+(deben conservar el nombre exacto que espera el proyecto — ver
+[Sobre los archivos de origen](#sobre-los-archivos-de-origen)); reemplazan
+cualquier dato de ejemplo que hubiera en esa cuenta y corren el mismo
+pipeline.
 
 El uso por consola (`python setup.py`, con datos reales o de ejemplo) no pasa
 por ninguna cuenta del panel: usa un `usuario_id` reservado (0) que nunca

@@ -1,11 +1,12 @@
 import random
 import sys
 from pathlib import Path
+from urllib.parse import quote
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import pymysql
-from fastapi import Depends, FastAPI, Form, Request
+from fastapi import Depends, FastAPI, File, Form, Request, UploadFile
 from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -13,6 +14,7 @@ from fastapi.templating import Jinja2Templates
 from generador import datos_demo
 from proceso import analisis, esquema, pipeline
 from proceso.conexion import conectar
+from proceso.fuentes import FUENTES
 from web.seguridad import (
     NOMBRE_COOKIE,
     crear_token,
@@ -47,6 +49,25 @@ CARPETA_ENTRADA = RAIZ / "datos" / "entrada"
 # síncronas en threads distintos) se pisen escribiendo el mismo archivo.
 CARPETA_ENTRADA_USUARIOS = RAIZ / "datos" / "entrada_usuarios"
 CARPETA_SALIDA_USUARIOS = RAIZ / "datos" / "salida_usuarios"
+
+# El botón genera una versión reducida (no la escala completa que usa
+# `python generador/datos_demo.py` por defecto): en Azure, cada inserción
+# es un viaje de red hacia Aiven (otra nube, otra región), y con la
+# escala completa la generación tarda varios minutos. A esta escala se
+# ven los mismos problemas de calidad (los genera el generador de forma
+# proporcional a cualquier tamaño), pero en segundos en vez de minutos.
+ESCALA_DEMO_WEB = 0.2
+
+# Nombres de archivo exactos que espera el pipeline (ver proceso/fuentes.py).
+# La carga de archivos propios exige los 6 completos: es más simple de
+# razonar y de validar que una carga parcial, y evita al usuario
+# preguntarse por qué el tablero salió "incompleto" sin avisarle por qué.
+ARCHIVOS_ESPERADOS = {fuente["archivo"] for fuente in FUENTES}
+
+# Tope por archivo para la carga propia: es un endpoint público (cualquier
+# cuenta registrada puede usarlo), así que conviene un límite explícito en
+# vez de confiar solo en el disco efímero del contenedor.
+TAMANO_MAXIMO_ARCHIVO_BYTES = 25 * 1024 * 1024
 
 
 @app.get("/")
@@ -174,7 +195,7 @@ def logout():
 
 
 @app.get("/tablero")
-def tablero(request: Request, sesion: dict = Depends(requiere_sesion)):
+def tablero(request: Request, sesion: dict = Depends(requiere_sesion), error: str | None = None):
     conexion = conectar()
     try:
         secciones = {}
@@ -189,7 +210,9 @@ def tablero(request: Request, sesion: dict = Depends(requiere_sesion)):
         conexion.close()
 
     return plantillas.TemplateResponse(
-        request, "tablero.html", {"email": sesion["email"], "secciones": secciones}
+        request,
+        "tablero.html",
+        {"email": sesion["email"], "secciones": secciones, "error": error},
     )
 
 
@@ -210,7 +233,67 @@ def generar_demo(sesion: dict = Depends(requiere_sesion)):
     carpeta = CARPETA_ENTRADA_USUARIOS / str(usuario_id)
 
     semilla = random.randint(1, 1_000_000)
-    datos_demo.generar(escala=1.0, semilla=semilla, carpeta=carpeta)
+    datos_demo.generar(escala=ESCALA_DEMO_WEB, semilla=semilla, carpeta=carpeta)
+
+    conexion = conectar()
+    try:
+        pipeline.ejecutar(conexion, carpeta, usuario_id)
+    finally:
+        conexion.close()
+
+    return RedirectResponse(url="/tablero", status_code=303)
+
+
+@app.post("/tablero/cargar-propios")
+async def cargar_propios(
+    sesion: dict = Depends(requiere_sesion),
+    archivos: list[UploadFile] = File(...),
+):
+    """Alternativa al botón de datos de ejemplo: si el usuario ya tiene
+    sus propios archivos de origen, los sube directamente en vez de usar
+    datos sintéticos, y se les aplica el mismo pipeline (esquema, carga,
+    homologación, consolidado) acotado a su cuenta.
+
+    Exige los 6 archivos completos con sus nombres exactos (ver
+    proceso/fuentes.py) — no se admite una carga parcial: es más simple
+    de razonar y evita que el usuario vea un tablero "incompleto" sin
+    entender por qué. Cada archivo tiene además un tope de tamaño: es un
+    endpoint público, cualquier cuenta registrada puede usarlo.
+    """
+    usuario_id = sesion["usuario_id"]
+    carpeta = CARPETA_ENTRADA_USUARIOS / str(usuario_id)
+
+    recibidos = {archivo.filename for archivo in archivos if archivo.filename}
+    faltantes = ARCHIVOS_ESPERADOS - recibidos
+    sobrantes = recibidos - ARCHIVOS_ESPERADOS
+
+    if faltantes or sobrantes:
+        partes = []
+        if faltantes:
+            partes.append("faltan: " + ", ".join(sorted(faltantes)))
+        if sobrantes:
+            partes.append("no se esperaban: " + ", ".join(sorted(sobrantes)))
+        mensaje = (
+            "Sube los 6 archivos exactos que pide el proyecto ("
+            + ", ".join(sorted(ARCHIVOS_ESPERADOS))
+            + "). " + "; ".join(partes) + "."
+        )
+        return RedirectResponse(url=f"/tablero?error={quote(mensaje)}", status_code=303)
+
+    contenidos: dict[str, bytes] = {}
+    for archivo in archivos:
+        cuerpo = await archivo.read()
+        if len(cuerpo) > TAMANO_MAXIMO_ARCHIVO_BYTES:
+            mensaje = (
+                f"{archivo.filename} pesa más del máximo permitido "
+                f"({TAMANO_MAXIMO_ARCHIVO_BYTES // (1024 * 1024)} MB)."
+            )
+            return RedirectResponse(url=f"/tablero?error={quote(mensaje)}", status_code=303)
+        contenidos[archivo.filename] = cuerpo
+
+    carpeta.mkdir(parents=True, exist_ok=True)
+    for nombre, cuerpo in contenidos.items():
+        (carpeta / nombre).write_bytes(cuerpo)
 
     conexion = conectar()
     try:
