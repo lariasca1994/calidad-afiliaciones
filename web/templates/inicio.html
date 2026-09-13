@@ -20,7 +20,7 @@
         Pipeline en Python + SQL sobre MySQL (Aiven): carga por lotes,
         homologación de documentos, deduplicación y vistas de calidad — este
         panel muestra los mismos indicadores del tablero de consola, en una
-        página.
+        página. Cada cuenta genera y ve solo sus propios datos de ejemplo.
     </p>
 
     <div class="flex flex-wrap justify-center gap-2 mb-10">
@@ -32,7 +32,10 @@
     {% if email %}
         <a href="/tablero" class="inline-block bg-mysql hover:bg-mysql-dark text-white font-semibold rounded px-6 py-3">Ver tablero</a>
     {% else %}
-        <a href="/login" class="inline-block bg-mysql hover:bg-mysql-dark text-white font-semibold rounded px-6 py-3">Iniciar sesión</a>
+        <div class="flex flex-wrap justify-center gap-3">
+            <a href="/login" class="inline-block bg-mysql hover:bg-mysql-dark text-white font-semibold rounded px-6 py-3">Iniciar sesión</a>
+            <a href="/registro" class="inline-block bg-white dark:bg-slate-900 border border-mysql text-mysql hover:bg-mysql/10 font-semibold rounded px-6 py-3">Crear cuenta</a>
+        </div>
     {% endif %}
 
     <div class="grid sm:grid-cols-3 gap-4 mt-14 text-left">

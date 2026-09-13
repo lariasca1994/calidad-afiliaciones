@@ -12,6 +12,12 @@
 -- traslado; lo que tiene es una marca de calidad. Mezclarlas —devolver
 -- 'Rechazado' como clasificacion— impide contar la produccion y medir
 -- la calidad al mismo tiempo, que es justo lo que pide el caso.
+--
+-- usuario_id entra en la particion de ROW_NUMBER() y en los dos JOIN de
+-- antecedente/duplicidad por la misma razon que en 02_homologacion.sql:
+-- sin ella, dos cuentas con un numero de documento igual por coincidencia
+-- competirian entre si por la prioridad de canal, en vez de calcularse
+-- cada una por separado.
 -- =====================================================================
 
 CREATE OR REPLACE VIEW vw_consolidado AS
@@ -22,7 +28,7 @@ WITH priorizado AS (
         -- SAT prevalece por ser el registro oficial ante el Ministerio;
         -- el digital sobre el fisico por tener trazabilidad completa.
         ROW_NUMBER() OVER (
-            PARTITION BY u.llave_afiliado
+            PARTITION BY u.usuario_id, u.llave_afiliado
             ORDER BY
                 CASE u.canal
                     WHEN 'SAT'          THEN 1
@@ -38,6 +44,7 @@ WITH priorizado AS (
     FROM vw_universo_tramites u
 )
 SELECT
+    p.usuario_id,
     p.llave_afiliado,
     p.canal                       AS canal_origen,
     p.id_origen                   AS id_radicado,
@@ -111,8 +118,10 @@ SELECT
 
 FROM priorizado p
 LEFT JOIN vw_antecedente_xml x
-       ON p.tipo_doc = x.tipo_doc
-      AND p.num_doc  = x.num_doc
+       ON p.usuario_id = x.usuario_id
+      AND p.tipo_doc   = x.tipo_doc
+      AND p.num_doc    = x.num_doc
 LEFT JOIN vw_duplicidad_multicanal d
-       ON p.llave_afiliado = d.llave_afiliado
+       ON p.usuario_id      = d.usuario_id
+      AND p.llave_afiliado  = d.llave_afiliado
 WHERE p.orden_prioridad = 1;

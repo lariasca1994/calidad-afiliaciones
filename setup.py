@@ -9,6 +9,15 @@
 Los archivos de origen se buscan en datos/entrada/. Esa carpeta está
 excluida del repositorio: contiene documentos, nombres y fechas de
 nacimiento.
+
+Sobre USUARIO_ID_CLI
+---------------------------------------------------------------------
+Desde que el panel web permite varias cuentas, las tablas de datos
+llevan una columna usuario_id para que cada cuenta vea solo lo suyo (ver
+sql/01_esquema.sql). Esta consola no pasa por ninguna cuenta del panel
+—se usa con datos reales o de ejemplo, directo contra la base—, así que
+se le reserva el valor 0, que nunca se asigna a una cuenta registrada
+(la tabla `usuarios` empieza su AUTO_INCREMENT en 1).
 """
 
 import argparse
@@ -18,12 +27,14 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from proceso import analisis, carga, esquema
+from proceso import analisis, carga, esquema, pipeline
 from proceso.conexion import conectar, describir
 
 RAIZ = Path(__file__).resolve().parent
 ENTRADA = RAIZ / "datos" / "entrada"
 SALIDA = RAIZ / "datos" / "salida"
+
+USUARIO_ID_CLI = 0
 
 
 def titulo(texto: str) -> None:
@@ -69,7 +80,7 @@ def main() -> int:
                 print("  Coloca ahí los CSV de origen y vuelve a ejecutar.")
                 return 1
 
-            resultados = carga.cargar_todo(conexion, ENTRADA)
+            resultados = carga.cargar_todo(conexion, ENTRADA, USUARIO_ID_CLI)
 
             total = sum(r["filas"] for r in resultados)
             print(f"\n  Total cargado: {total:,} filas")
@@ -82,20 +93,17 @@ def main() -> int:
 
         print("  Materializando el consolidado...")
         esquema.crear(conexion, RAIZ / "sql" / "03b_materializar.sql")
-
-        cursor = conexion.cursor()
-        cursor.execute("SELECT COUNT(*) FROM consolidado")
-        print(f"  {cursor.fetchone()[0]:,} registros consolidados")
-        cursor.close()
+        total_consolidado = pipeline.materializar_consolidado(conexion, USUARIO_ID_CLI)
+        print(f"  {total_consolidado:,} registros consolidados")
 
         # --- Indicadores -----------------------------------------------
         titulo("4 · Indicadores")
-        analisis.mostrar_tablero(conexion)
+        analisis.mostrar_tablero(conexion, USUARIO_ID_CLI)
 
         # --- Exportación -----------------------------------------------
         if args.exportar:
             titulo("5 · Exportación")
-            analisis.exportar(conexion, SALIDA)
+            analisis.exportar(conexion, SALIDA, USUARIO_ID_CLI)
 
     finally:
         conexion.close()

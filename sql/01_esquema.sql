@@ -7,6 +7,18 @@
 -- espacios y valores fuera de catalogo; rechazarlos en la carga
 -- impediria justamente medir la calidad, que es el objeto del ejercicio.
 -- La conversion y la validacion ocurren despues, en las vistas.
+--
+-- CREATE TABLE IF NOT EXISTS, no DROP + CREATE
+-- ---------------------------------------------------------------------
+-- Antes de que el panel web permitiera varias cuentas, este archivo
+-- empezaba con DROP TABLE: cada corrida de "python setup.py" era la
+-- unica fuente de datos, asi que reconstruir desde cero era seguro. Con
+-- registro publico, cada tabla puede tener filas de decenas de cuentas
+-- distintas al mismo tiempo (columna usuario_id) — un DROP TABLE
+-- borraria los datos de ejemplo de todo el mundo cada vez que UNA
+-- persona genera los suyos. Por eso ahora es idempotente: crea la tabla
+-- solo si no existe, y la carga (proceso/carga.py) borra e inserta solo
+-- las filas del usuario que esta cargando.
 -- =====================================================================
 
 -- Aiven entrega la base ya creada, asi que no se usa CREATE DATABASE.
@@ -17,22 +29,15 @@
 -- replicacion. De paso permite rastrear una fila hasta su archivo de
 -- origen.
 
-DROP VIEW  IF EXISTS vw_consolidado;
-DROP VIEW  IF EXISTS vw_duplicidad_multicanal;
-DROP VIEW  IF EXISTS vw_universo_tramites;
-DROP VIEW  IF EXISTS vw_antecedente_xml;
-DROP VIEW  IF EXISTS vw_homologacion_sat;
-
-DROP TABLE IF EXISTS HOMOLOGACION_DOCUMENTOS;
-DROP TABLE IF EXISTS AFILIACIONES;
-DROP TABLE IF EXISTS DIGITAL;
-DROP TABLE IF EXISTS SAT;
-DROP TABLE IF EXISTS PROCESO_IRL;
-DROP TABLE IF EXISTS XML_HISTORICO;
-
 
 -- ---------------------------------------------------------------------
 -- Catalogo maestro de tipos de documento
+--
+-- Sin usuario_id a proposito: es un catalogo de referencia identico para
+-- todo el mundo (los mismos ~11 tipos de documento), no datos de una
+-- persona en particular. Cada carga lo trunca y lo vuelve a insertar
+-- completo (ver carga.py) sin que eso afecte a nadie mas, porque el
+-- contenido siempre es el mismo.
 --
 -- Ojo: CODIGO NO es unico. 'NIT' aparece dos veces, con abreviaturas NI
 -- y NT y el mismo codigo 4. Por eso la llave primaria es Abreviatura, y
@@ -40,7 +45,7 @@ DROP TABLE IF EXISTS XML_HISTORICO;
 -- deduplica (ver 02_homologacion.sql): sin ella, un documento de tipo 4
 -- generaria dos filas y duplicaria la produccion.
 -- ---------------------------------------------------------------------
-CREATE TABLE HOMOLOGACION_DOCUMENTOS (
+CREATE TABLE IF NOT EXISTS HOMOLOGACION_DOCUMENTOS (
     Tipo_Documento_Afiliado VARCHAR(100),
     CODIGO                  INT,
     Abreviatura             VARCHAR(5) PRIMARY KEY,
@@ -51,8 +56,9 @@ CREATE TABLE HOMOLOGACION_DOCUMENTOS (
 -- ---------------------------------------------------------------------
 -- Canal fisico
 -- ---------------------------------------------------------------------
-CREATE TABLE AFILIACIONES (
+CREATE TABLE IF NOT EXISTS AFILIACIONES (
     fila_id                  BIGINT AUTO_INCREMENT PRIMARY KEY,
+    usuario_id               INT NOT NULL,
     ID                       INT,
     CODIGOASESOR             VARCHAR(20),
     SOLICITUD                VARCHAR(50),
@@ -72,6 +78,7 @@ CREATE TABLE AFILIACIONES (
     POBLACIONESPECIAL        VARCHAR(500),
     EXCEPCIONTRASLADO        VARCHAR(5),
     CAUSALEXCEPCION          VARCHAR(255),
+    INDEX idx_afi_usuario (usuario_id),
     INDEX idx_afi_doc (TIPODOCUMENTO, NUMERODOCUMENTO),
     INDEX idx_afi_id  (ID)
 );
@@ -84,8 +91,9 @@ CREATE TABLE AFILIACIONES (
 -- comparte IDPRODUCCION y genera una fila por cotizante y por
 -- beneficiario. Ver docs/decisiones.md.
 -- ---------------------------------------------------------------------
-CREATE TABLE DIGITAL (
+CREATE TABLE IF NOT EXISTS DIGITAL (
     fila_id                      BIGINT AUTO_INCREMENT PRIMARY KEY,
+    usuario_id                   INT NOT NULL,
     IDPRODUCCION                 INT,
     ESTADOAFILIACION             VARCHAR(50),
     DESCRIPCIONESTADO            VARCHAR(100),
@@ -136,6 +144,7 @@ CREATE TABLE DIGITAL (
     SOPORTE_QUEJA_SUPER_SALUD    VARCHAR(5),
     TRASLADO                     VARCHAR(5),
     VALOREPSANTERIOR             VARCHAR(100),
+    INDEX idx_dig_usuario (usuario_id),
     INDEX idx_dig_doc (TIPODOCUMENTOAFILIADO, NUM_AFILIADO),
     INDEX idx_dig_id  (IDPRODUCCION),
     INDEX idx_dig_est (ESTADOAFILIACION)
@@ -146,8 +155,9 @@ CREATE TABLE DIGITAL (
 -- Canal SAT (MinSalud). El tipo de documento viene como codigo numerico,
 -- a diferencia del resto de fuentes, que usan la abreviatura.
 -- ---------------------------------------------------------------------
-CREATE TABLE SAT (
+CREATE TABLE IF NOT EXISTS SAT (
     fila_id                  BIGINT AUTO_INCREMENT PRIMARY KEY,
+    usuario_id               INT NOT NULL,
     ID                       INT,
     NORADICADOSAT            VARCHAR(100),
     CODIGOASESOR             VARCHAR(20),
@@ -166,6 +176,7 @@ CREATE TABLE SAT (
     NOMBREIPS                VARCHAR(200),
     CODIGOOCUPACION          VARCHAR(20),
     NOMBREOCUPACION          VARCHAR(200),
+    INDEX idx_sat_usuario (usuario_id),
     INDEX idx_sat_doc (TIPODOCUMENTO, NUMERODOCUMENTOAFILIADO),
     INDEX idx_sat_id  (ID)
 );
@@ -175,8 +186,9 @@ CREATE TABLE SAT (
 -- Novedades de relaciones laborales. NO son afiliaciones: quedan fuera
 -- del conteo de produccion y se reportan aparte.
 -- ---------------------------------------------------------------------
-CREATE TABLE PROCESO_IRL (
+CREATE TABLE IF NOT EXISTS PROCESO_IRL (
     fila_id           BIGINT AUTO_INCREMENT PRIMARY KEY,
+    usuario_id        INT NOT NULL,
     TIPO_DOC          VARCHAR(5),
     NUMDOC            VARCHAR(20),
     CARGO             VARCHAR(100),
@@ -192,6 +204,7 @@ CREATE TABLE PROCESO_IRL (
     ORIGEN            VARCHAR(100),
     LOG_ERRORES       VARCHAR(255),
     ID_TRAMITE        VARCHAR(50),
+    INDEX idx_irl_usuario (usuario_id),
     INDEX idx_irl_doc (TIPO_DOC, NUMDOC),
     INDEX idx_irl_log (LOG_ERRORES)
 );
@@ -201,8 +214,9 @@ CREATE TABLE PROCESO_IRL (
 -- Radicacion historica. Determina si el afiliado ya estuvo en la EPS y
 -- en cual entidad, que es lo que separa reinscripcion de traslado.
 -- ---------------------------------------------------------------------
-CREATE TABLE XML_HISTORICO (
+CREATE TABLE IF NOT EXISTS XML_HISTORICO (
     fila_id                   BIGINT AUTO_INCREMENT PRIMARY KEY,
+    usuario_id                INT NOT NULL,
     IDENTIFICADOR             VARCHAR(50),
     SERIAL                    VARCHAR(50),
     TIPO_IDENTIFICACION       VARCHAR(5),
@@ -230,6 +244,7 @@ CREATE TABLE XML_HISTORICO (
     CANAL                     VARCHAR(50),
     ID_TRAMITE_RADICADO       VARCHAR(50),
     FECHA_CONSULTA            VARCHAR(30),
+    INDEX idx_xml_usuario (usuario_id),
     INDEX idx_xml_doc (TIPO_IDENTIFICACION, NUMERO_IDENTIFICACION),
     INDEX idx_xml_ent (ENTIDAD)
 );

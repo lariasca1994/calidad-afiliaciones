@@ -24,6 +24,19 @@ los datos reales, porque son justamente lo que da sentido al proyecto:
   - el tipo NIT repetido en el catálogo con dos abreviaturas
   - departamentos y municipios en el histórico escritos como texto,
     no como código, a diferencia de los canales operativos
+
+Por qué `carpeta` es un parámetro y no solo una constante global
+---------------------------------------------------------------------
+El botón "Generar datos de ejemplo" del panel web llama a `generar()`
+directamente (sin pasar por esta terminal), y con registro público de
+cuentas puede haber varias personas generando datos AL MISMO TIEMPO. Si
+todas escribieran siempre en la misma carpeta fija, dos generaciones
+simultáneas correrían el riesgo de mezclar o pisar los archivos de la
+otra a mitad de escritura. Por eso cada función de generación recibe la
+carpeta de destino como argumento — el panel web le pasa una carpeta
+propia por cuenta (datos/entrada_usuarios/<id>/); esta terminal, cuando
+se usa sin argumentos, sigue escribiendo en la carpeta compartida de
+siempre (datos/entrada/), porque ahí no hay concurrencia que resolver.
 """
 
 import argparse
@@ -176,13 +189,13 @@ def escribir_csv(ruta: Path, columnas: list[str], filas: list[dict], separador: 
         escritor.writerows(filas)
 
 
-def generar_homologacion() -> None:
+def generar_homologacion(carpeta: Path) -> None:
     filas = [
         {"Tipo_Documento_Afiliado": nombre, "CODIGO": codigo, "Abreviatura": abrev}
         for nombre, codigo, abrev in CATALOGO_DOCUMENTOS
     ]
     escribir_csv(
-        ENTRADA / "HOMOLOGACION_DOCUMENTOS.csv",
+        carpeta / "HOMOLOGACION_DOCUMENTOS.csv",
         ["Tipo_Documento_Afiliado", "CODIGO", "Abreviatura"],
         filas,
         "|",
@@ -237,7 +250,7 @@ def inyectar_duplicados(
                 lista[i] = rng.choice(origen)
 
 
-def generar_afiliaciones(rng: random.Random, asignados: list[dict]) -> None:
+def generar_afiliaciones(rng: random.Random, asignados: list[dict], carpeta: Path) -> None:
     columnas = [
         "ID", "CODIGOASESOR", "SOLICITUD", "TIPODOCUMENTO", "NUMERODOCUMENTO",
         "DEPARTAMENTOID", "MUNICIPIOID", "CODIGOAFILIACION", "NOMBREIPS",
@@ -272,10 +285,10 @@ def generar_afiliaciones(rng: random.Random, asignados: list[dict]) -> None:
             "EXCEPCIONTRASLADO": "N",
             "CAUSALEXCEPCION": "",
         })
-    escribir_csv(ENTRADA / "AFILIACIONES.csv", columnas, filas, "|")
+    escribir_csv(carpeta / "AFILIACIONES.csv", columnas, filas, "|")
 
 
-def generar_digital(rng: random.Random, asignados: list[dict]) -> None:
+def generar_digital(rng: random.Random, asignados: list[dict], carpeta: Path) -> None:
     columnas = [
         "IDPRODUCCION", "ESTADOAFILIACION", "DESCRIPCIONESTADO", "FECHASOLICITUD",
         "FECHARADICACION", "TIPOREGIMEN", "CODIGOASESOR", "TIPOAFILIACION",
@@ -361,10 +374,10 @@ def generar_digital(rng: random.Random, asignados: list[dict]) -> None:
             "TRASLADO": rng.choices(["S", "N"], weights=[20, 80])[0],
             "VALOREPSANTERIOR": "",
         })
-    escribir_csv(ENTRADA / "DIGITAL.csv", columnas, filas, "|")
+    escribir_csv(carpeta / "DIGITAL.csv", columnas, filas, "|")
 
 
-def generar_sat(rng: random.Random, asignados: list[dict]) -> None:
+def generar_sat(rng: random.Random, asignados: list[dict], carpeta: Path) -> None:
     columnas = [
         "ID", "NORADICADOSAT", "CODIGOASESOR", "TIPODOCUMENTO",
         "NUMERODOCUMENTOAFILIADO", "SOLICITUD", "FECHARADICACION", "REGIMEN",
@@ -400,7 +413,7 @@ def generar_sat(rng: random.Random, asignados: list[dict]) -> None:
             "CODIGOOCUPACION": str(rng.randint(1000, 9999)),
             "NOMBREOCUPACION": rng.choice(["INDEPENDIENTE", "EMPLEADO", "PENSIONADO"]),
         })
-    escribir_csv(ENTRADA / "SAT.csv", columnas, filas, "|")
+    escribir_csv(carpeta / "SAT.csv", columnas, filas, "|")
 
 
 def _persona_externa(rng: random.Random) -> dict:
@@ -457,7 +470,7 @@ def preparar_antecedentes(
     }
 
 
-def generar_irl(rng: random.Random, pool_operativo: list[dict], cantidad: int) -> None:
+def generar_irl(rng: random.Random, pool_operativo: list[dict], cantidad: int, carpeta: Path) -> None:
     columnas = [
         "TIPO_DOC", "NUMDOC", "CARGO", "TIPO_DOC_EMP", "NUMEMP", "FECHADEINGRESO",
         "ASESOR", "TIPO_DE_EMPLEADOR", "TIPO_DE_RESPUESTA", "N_ARCHIVO",
@@ -487,13 +500,14 @@ def generar_irl(rng: random.Random, pool_operativo: list[dict], cantidad: int) -
             "LOG_ERRORES": _elegir_ponderado(rng, LOG_ERRORES_IRL),
             "ID_TRAMITE": f"IRL{i + 1:08d}",
         })
-    escribir_csv(ENTRADA / "PROCESO_IRL.csv", columnas, filas, "|")
+    escribir_csv(carpeta / "PROCESO_IRL.csv", columnas, filas, "|")
 
 
 def generar_xml(
     rng: random.Random,
     antecedentes: dict,
     cantidad: int,
+    carpeta: Path,
     proporcion_externa: float = 0.10,
 ) -> None:
     """Genera el histórico. antecedentes trae los tres grupos que deciden
@@ -601,10 +615,11 @@ def generar_xml(
             "ID_TRAMITE_RADICADO": f"XML{i + 1:08d}",
             "FECHA_CONSULTA": date(2026, 8, 1).strftime("%d/%m/%Y"),
         })
-    escribir_csv(ENTRADA / "XML.csv", columnas, filas, ";")
+    escribir_csv(carpeta / "XML.csv", columnas, filas, ";")
 
 
-def generar(escala: float, semilla: int) -> None:
+def generar(escala: float, semilla: int, carpeta: Path | None = None) -> None:
+    destino = carpeta if carpeta is not None else ENTRADA
     rng = random.Random(semilla)
 
     base = {"afiliaciones": 900, "digital": 3200, "sat": 900,
@@ -618,12 +633,12 @@ def generar(escala: float, semilla: int) -> None:
     # duplicidad y conviene que cubran un universo de personas más amplio.
     total_operativo = n["afiliaciones"] + n["digital"] + n["sat"]
 
-    ENTRADA.mkdir(parents=True, exist_ok=True)
+    destino.mkdir(parents=True, exist_ok=True)
 
     print("Generando datos sintéticos")
     print(f"  Escala: {escala}x · Semilla: {semilla}\n")
 
-    generar_homologacion()
+    generar_homologacion(destino)
     print(f"  HOMOLOGACION_DOCUMENTOS.csv   {len(CATALOGO_DOCUMENTOS)} filas")
 
     operativo = GeneradorAfiliados(rng, total_operativo)
@@ -641,16 +656,16 @@ def generar(escala: float, semilla: int) -> None:
         "SAT": asig_sat,
     })
 
-    generar_afiliaciones(rng, asig_afiliaciones)
+    generar_afiliaciones(rng, asig_afiliaciones, destino)
     print(f"  AFILIACIONES.csv              {n['afiliaciones']} filas")
 
-    generar_digital(rng, asig_digital)
+    generar_digital(rng, asig_digital, destino)
     print(f"  DIGITAL.csv                   {n['digital']} filas")
 
-    generar_sat(rng, asig_sat)
+    generar_sat(rng, asig_sat, destino)
     print(f"  SAT.csv                       {n['sat']} filas")
 
-    generar_irl(rng, operativo.pool, n["irl"])
+    generar_irl(rng, operativo.pool, n["irl"], destino)
     print(f"  PROCESO_IRL.csv               {n['irl']} filas")
 
     # El XML debe referenciar a las MISMAS personas del pool operativo:
@@ -658,10 +673,10 @@ def generar(escala: float, semilla: int) -> None:
     # Traslado, Afiliacion Nueva) tenga sentido en lugar de caer siempre
     # en un solo valor por defecto.
     antecedentes = preparar_antecedentes(rng, operativo.pool)
-    generar_xml(rng, antecedentes, n["xml"])
+    generar_xml(rng, antecedentes, n["xml"], destino)
     print(f"  XML.csv                       {n['xml']} filas")
 
-    print(f"\nArchivos escritos en {ENTRADA}")
+    print(f"\nArchivos escritos en {destino}")
     print("Ejecuta 'python setup.py' para cargarlos.")
 
 

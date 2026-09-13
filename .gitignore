@@ -25,6 +25,14 @@ datos/salida/*
 !datos/entrada/.gitkeep
 !datos/salida/.gitkeep
 
+# Carpetas por cuenta del panel web (registro público): cada usuario_id
+# tiene la suya, generada y borrada en tiempo de ejecución — mismo
+# riesgo de datos personales que datos/entrada, así que la misma regla.
+datos/entrada_usuarios/*
+datos/salida_usuarios/*
+!datos/entrada_usuarios/.gitkeep
+!datos/salida_usuarios/.gitkeep
+
 # Red de seguridad: cualquier CSV, Excel o comprimido queda excluido de raiz,
 # incluso si aparece fuera de las carpetas previstas o con otro nombre.
 *.csv

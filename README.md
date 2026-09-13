@@ -108,10 +108,13 @@ incluidos los criterios alternativos razonables y qué cambiaría al adoptarlos.
 
 ```
 sql/
-├── 01_esquema.sql          Tablas de origen con índices
+├── 01_esquema.sql          Tablas de origen con índices (una columna usuario_id
+│                            por tabla, salvo el catálogo compartido)
 ├── 02_homologacion.sql     Llave única, antecedente y duplicidad
 ├── 03_consolidado.sql      Clasificación y marcas de calidad
-└── 04_indicadores.sql      Once consultas para el tablero
+├── 03b_materializar.sql    Estructura de la tabla `consolidado`
+├── 04_indicadores.sql      Consultas de referencia para el tablero
+└── 05_usuarios.sql         Cuentas del panel web (registro público)
 
 proceso/
 ├── conexion.py             Conexión con la base
@@ -125,8 +128,10 @@ proceso/
 
 web/                        Panel web opcional (ver más abajo)
 
-datos/entrada/              Archivos de origen · excluidos del repositorio
-datos/salida/               Consolidado exportado · excluido
+datos/entrada/              Archivos de origen (uso por consola) · excluidos
+datos/salida/               Consolidado exportado (uso por consola) · excluido
+datos/entrada_usuarios/     Datos de ejemplo por cuenta del panel web · excluido
+datos/salida_usuarios/      Exportación por cuenta del panel web · excluido
 docs/decisiones.md          Criterios adoptados y sus alternativas
 excel/                      Ver Power Query y Power Pivot más abajo
 setup.py                    Comando único
@@ -244,24 +249,30 @@ solo hay que encender el servicio a mano cuando esté apagado.
 ## Panel web (opcional)
 
 Además del tablero de consola (`python setup.py`) y de Power Query/Power
-Pivot en Excel, hay un panel web mínimo en `web/` que muestra los mismos
-cinco bloques de indicadores en una página, con tema claro/oscuro.
+Pivot en Excel, hay un panel web en `web/` que muestra los mismos cinco
+bloques de indicadores en una página, con tema claro/oscuro.
 
 ```bash
 pip install -r requirements.txt   # ya incluye fastapi/uvicorn
 uvicorn web.main:app --reload --port 8400
 ```
 
-Abre `http://localhost:8400` — pide iniciar sesión antes de ver el tablero.
-No hay registro público: es un panel de un único usuario, pensado para
-revisar el proyecto sin depender de Excel.
+Abre `http://localhost:8400`. El registro es público y libre —cualquiera
+puede crear una cuenta desde **Crear cuenta**, sin aprobación previa— y cada
+cuenta ve exclusivamente sus propios datos: al generar el conjunto de ejemplo,
+esos registros quedan asociados a esa cuenta (columna `usuario_id` en cada
+tabla), de modo que dos cuentas distintas nunca ven ni mezclan los datos de
+la otra, aunque generen "al mismo tiempo".
 
-Desde el propio tablero, el botón **🎲 Generar datos de ejemplo** genera un
-conjunto sintético nuevo (semilla aleatoria en cada clic), lo guarda en
-`datos/entrada/` reemplazando lo que hubiera ahí, y recalcula el consolidado
-contra ese contenido — el mismo camino que
-`python generador/datos_demo.py && python setup.py`, sin salir del navegador
-ni tocar una terminal.
+Desde el tablero, el botón **🎲 Generar datos de ejemplo** genera un conjunto
+sintético nuevo para la cuenta que inició sesión (semilla aleatoria en cada
+clic) y recalcula su consolidado — el mismo camino que
+`python generador/datos_demo.py && python setup.py`, pero acotado a esa
+cuenta y sin salir del navegador ni tocar una terminal.
+
+El uso por consola (`python setup.py`, con datos reales o de ejemplo) no pasa
+por ninguna cuenta del panel: usa un `usuario_id` reservado (0) que nunca
+coincide con una cuenta registrada.
 
 ## Power Query y Power Pivot
 

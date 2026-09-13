@@ -5,11 +5,19 @@
 -- codigo numerico del catalogo y las demas usan la abreviatura. Sin
 -- unificarlo no hay forma de saber que 'CC' y '3' son la misma persona,
 -- y la duplicidad entre canales queda invisible.
+--
+-- usuario_id viaja por todas estas vistas a partir de aqui. Es lo que
+-- permite que dos cuentas puedan generar y ver datos de ejemplo al mismo
+-- tiempo sin mezclarse: sin esta columna, dos personas que por azar
+-- generan un mismo numero de documento apareceriamos como el mismo
+-- afiliado duplicado entre ellas, lo cual seria incorrecto y ademas
+-- filtraria informacion de una cuenta a otra.
 -- =====================================================================
 
 
 -- ---------------------------------------------------------------------
--- Catalogo deduplicado por codigo.
+-- Catalogo deduplicado por codigo. Sin usuario_id: es el mismo catalogo
+-- para todo el mundo (ver 01_esquema.sql).
 --
 -- 'NIT' figura dos veces con el mismo CODIGO 4 y abreviaturas distintas
 -- (NI y NT). Un cruce directo contra CODIGO devolveria dos filas por
@@ -31,7 +39,7 @@ GROUP BY CODIGO;
 --
 -- PROCESO_IRL queda deliberadamente fuera: son novedades laborales, no
 -- afiliaciones. Incluirlas inflaria la produccion en mas de 167.000
--- registros. Se analizan aparte, en 05_indicadores.sql.
+-- registros. Se analizan aparte, en 04_indicadores.sql.
 --
 -- La fecha se convierte aqui porque cada fuente trae un formato
 -- distinto: dd/mm/aa en el canal fisico y en SAT, y aaaa-mm-dd hh:mm:ss
@@ -41,6 +49,7 @@ CREATE OR REPLACE VIEW vw_universo_tramites AS
 
 -- Canal fisico
 SELECT
+    a.usuario_id                                     AS usuario_id,
     'AFILIACIONES'                                   AS canal,
     CAST(a.ID AS CHAR)                               AS id_origen,
     COALESCE(h.Abreviatura, 'NO_HOMOLOGADO')         AS tipo_doc,
@@ -64,6 +73,7 @@ UNION ALL
 
 -- Canal digital
 SELECT
+    d.usuario_id,
     'DIGITAL',
     CAST(d.IDPRODUCCION AS CHAR),
     COALESCE(h.Abreviatura, 'NO_HOMOLOGADO'),
@@ -93,6 +103,7 @@ UNION ALL
 
 -- Canal SAT: cruce por codigo numerico, contra el catalogo deduplicado
 SELECT
+    s.usuario_id,
     'SAT',
     CAST(s.ID AS CHAR),
     COALESCE(hs.Abreviatura, 'NO_HOMOLOGADO'),
@@ -122,11 +133,13 @@ LEFT JOIN vw_homologacion_sat hs
 -- 'NUEVA EPS S.A. -CM' tambien es Nueva EPS, de modo que la comparacion
 -- va por prefijo y no por igualdad.
 --
--- Se agrupa por documento porque un mismo afiliado puede tener varios
--- registros historicos; sin agrupar, el cruce multiplicaria filas.
+-- Se agrupa por usuario_id + documento porque un mismo afiliado puede
+-- tener varios registros historicos, y porque dos cuentas distintas no
+-- deben cruzarse aunque compartan un numero de documento por azar.
 -- ---------------------------------------------------------------------
 CREATE OR REPLACE VIEW vw_antecedente_xml AS
 SELECT
+    usuario_id,
     TRIM(TIPO_IDENTIFICACION) AS tipo_doc,
     TRIM(NUMERO_IDENTIFICACION) AS num_doc,
     MAX(CASE WHEN UPPER(ENTIDAD) LIKE 'NUEVA EPS%' THEN 1 ELSE 0 END) AS estuvo_en_nueva_eps,
@@ -135,7 +148,7 @@ SELECT
     COUNT(*) AS registros_historicos
 FROM XML_HISTORICO
 WHERE NULLIF(TRIM(NUMERO_IDENTIFICACION), '') IS NOT NULL
-GROUP BY TRIM(TIPO_IDENTIFICACION), TRIM(NUMERO_IDENTIFICACION);
+GROUP BY usuario_id, TRIM(TIPO_IDENTIFICACION), TRIM(NUMERO_IDENTIFICACION);
 
 
 -- ---------------------------------------------------------------------
@@ -150,9 +163,12 @@ GROUP BY TRIM(TIPO_IDENTIFICACION), TRIM(NUMERO_IDENTIFICACION);
 --     problema de control en el punto de captura.
 --
 -- Sumarlas en una sola cifra oculta cual de los dos hay que atacar.
+-- Igual que arriba, se agrupa tambien por usuario_id para no mezclar la
+-- duplicidad de una cuenta con la de otra.
 -- ---------------------------------------------------------------------
 CREATE OR REPLACE VIEW vw_duplicidad_multicanal AS
 SELECT
+    usuario_id,
     llave_afiliado,
     COUNT(DISTINCT canal)       AS canales_distintos,
     COUNT(*)                    AS registros_totales,
@@ -163,4 +179,4 @@ SELECT
 FROM vw_universo_tramites
 WHERE tipo_doc <> 'NO_HOMOLOGADO'
   AND NULLIF(num_doc, '') IS NOT NULL
-GROUP BY llave_afiliado;
+GROUP BY usuario_id, llave_afiliado;
