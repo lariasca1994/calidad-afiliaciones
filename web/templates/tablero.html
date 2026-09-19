@@ -100,12 +100,17 @@
 {% endfor %}
 
 <script>
-// Deshabilita el botón al enviar el formulario: el pipeline completo
-// (generar + cargar + consolidar) tarda unos segundos, y sin esto un
-// doble clic dispararía dos cargas al tiempo sobre la misma tabla.
+// Deshabilita el botón DESPUÉS de que el navegador ya inició el envío
+// del formulario. Si se deshabilita de forma síncrona dentro del propio
+// onclick del botón que disparó el clic, varios navegadores cancelan el
+// submit (el botón que originó la acción queda inhabilitado antes de
+// completarse su acción por defecto) y la petición nunca llega al
+// servidor, aunque el texto del botón sí cambie a "Generando…".
 function iniciarGeneracion(boton) {
-    boton.disabled = true;
-    boton.textContent = 'Generando…';
+    setTimeout(function () {
+        boton.disabled = true;
+        boton.textContent = 'Generando…';
+    }, 0);
     return true;
 }
 </script>
