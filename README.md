@@ -14,6 +14,13 @@ El problema: cada canal reporta con su propio formato, el mismo afiliado puede
 radicar por varias vías, y no existe una cifra única de producción en la que se
 pueda confiar.
 
+## Demo en vivo
+
+**Panel:** [calidad-afiliaciones.blueocean-86680030.eastus.azurecontainerapps.io](https://calidad-afiliaciones.blueocean-86680030.eastus.azurecontainerapps.io/)
+
+El registro es público y libre — ver [Panel web](#panel-web-opcional) para el
+detalle de cómo funciona por cuenta.
+
 ---
 
 ## Explóralo en tres minutos
@@ -52,9 +59,9 @@ aleatorios.
 A partir de ahí, el resto queda a criterio de quien lo explore: revisar el SQL
 en `sql/`, leer las decisiones en `docs/decisiones.md`, conectar Excel para
 armar tablas dinámicas sobre la tabla `consolidado` (ver
-[Power Query y Power Pivot](#power-query-y-power-pivot)), o abrir el
-[panel web](#panel-web-opcional) y generar los datos de ejemplo con un clic,
-sin pasar por la terminal.
+[Power Query y Power Pivot](#power-query-y-power-pivot)), o entrar directamente
+a la [demo en vivo](#demo-en-vivo) y generar los datos de ejemplo con un clic,
+sin instalar nada.
 
 ---
 
@@ -130,7 +137,7 @@ proceso/
                              usado por el botón "Generar datos de ejemplo"
                              del panel web
 
-web/                        Panel web opcional (ver más abajo)
+web/                        Panel web (ver más abajo)
 
 datos/entrada/              Archivos de origen (uso por consola) · excluidos
 datos/salida/               Consolidado exportado (uso por consola) · excluido
@@ -252,9 +259,13 @@ solo hay que encender el servicio a mano cuando esté apagado.
 
 ## Panel web (opcional)
 
+Hay una instancia pública corriendo en Azure Container Apps — ver
+[Demo en vivo](#demo-en-vivo). Levantarlo en local (`web/`) solo hace falta
+para desarrollo o para conectarlo a una base propia distinta de la pública.
+
 Además del tablero de consola (`python setup.py`) y de Power Query/Power
-Pivot en Excel, hay un panel web en `web/` que muestra los mismos cinco
-bloques de indicadores en una página, con tema claro/oscuro.
+Pivot en Excel, el panel muestra los mismos cinco bloques de indicadores en
+una página, con tema claro/oscuro.
 
 ```bash
 pip install -r requirements.txt   # ya incluye fastapi/uvicorn
@@ -266,7 +277,8 @@ puede crear una cuenta desde **Crear cuenta**, sin aprobación previa— y cada
 cuenta ve exclusivamente sus propios datos: al generar el conjunto de ejemplo,
 esos registros quedan asociados a esa cuenta (columna `usuario_id` en cada
 tabla), de modo que dos cuentas distintas nunca ven ni mezclan los datos de
-la otra, aunque generen "al mismo tiempo".
+la otra, aunque generen "al mismo tiempo". Esto aplica igual en la instancia
+pública que en una corrida local.
 
 Desde el tablero, el botón **🎲 Generar datos de ejemplo** genera un conjunto
 sintético nuevo para la cuenta que inició sesión (semilla aleatoria en cada
