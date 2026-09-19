@@ -1,5 +1,11 @@
 # Calidad de afiliaciones multicanal
 
+![MySQL](https://img.shields.io/badge/MySQL-4479A1?style=flat&logo=mysql&logoColor=white)
+![Python](https://img.shields.io/badge/Python-3776AB?style=flat&logo=python&logoColor=white)
+![pandas](https://img.shields.io/badge/pandas-150458?style=flat&logo=pandas&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=flat&logo=fastapi&logoColor=white)
+![Excel](https://img.shields.io/badge/Power_Query_%2F_Power_Pivot-217346?style=flat&logo=microsoftexcel&logoColor=white)
+
 Consolidación y análisis de calidad de la producción de afiliaciones de una EPS
 que recibe trámites por tres canales distintos, más un histórico de radicación
 y un archivo de novedades laborales.
@@ -7,8 +13,6 @@ y un archivo de novedades laborales.
 El problema: cada canal reporta con su propio formato, el mismo afiliado puede
 radicar por varias vías, y no existe una cifra única de producción en la que se
 pueda confiar.
-
-`MySQL` · `Python` · `pandas` · `Power Query` · `Power Pivot`
 
 ---
 
@@ -376,6 +380,13 @@ inserción por lotes desde Python es algo más lenta, pero funciona sin tocar la
 configuración del servidor y permite resolver de paso dos particularidades de
 los archivos: vienen en codificación latin-1 y usan separadores distintos —barra
 vertical en cinco fuentes, punto y coma en la radicación histórica—.
+
+---
+
+## Autor
+
+**Luis Felipe Arias Carriazo**
+[GitHub](https://github.com/lariasca1994) · [LinkedIn](https://linkedin.com/in/lfac1)
 
 ---
 
