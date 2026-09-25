@@ -1,0 +1,509 @@
+From 165537961487107d96e80a9e9008d34aeac595eb Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Fri, 25 Sep 2026 04:20:31 +0000
+Subject: [PATCH] =?UTF-8?q?feat:=20dar=20al=20rol=20ADMIN=20gesti=C3=B3n?=
+ =?UTF-8?q?=20real=20(antes=20solo=20lectura)?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+- Nuevas funciones admin_actualizar_tarea/admin_cambiar_estado/
+  admin_eliminar_tarea que operan sobre cualquier tarea (filtran
+  solo por _id, no por usuario_id como el resto del repositorio).
+- Nuevos endpoints POST /admin/tareas/{id}/editar, /estado,
+  /eliminar, todos vía usuario_admin_web.
+- Gestión de cuentas de usuario, no existía nada antes: nuevo panel
+  /admin/usuarios (listar, suspender, reactivar, eliminar), con
+  protección para que un admin no pueda suspenderse/eliminarse a sí
+  mismo.
+- _resolver() ahora trata una cuenta suspendida como sesión inválida,
+  con efecto inmediato.
+- Actualiza los docstrings que decían "solo lectura".
+
+Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01T6T4vwKtRkakDWF6qtE2aC
+---
+ backend/app/comandos/crear_admin.py       |   6 +-
+ backend/app/dependencias.py               |  14 ++-
+ backend/app/repositorio.py                |  94 ++++++++++++++++++-
+ backend/app/routers/admin.py              | 104 ++++++++++++++++++++--
+ backend/app/templates/admin_tareas.html   |  37 +++++++-
+ backend/app/templates/admin_usuarios.html |  79 ++++++++++++++++
+ backend/app/templates/base.html           |   1 +
+ 7 files changed, 314 insertions(+), 21 deletions(-)
+ create mode 100644 backend/app/templates/admin_usuarios.html
+
+diff --git a/backend/app/comandos/crear_admin.py b/backend/app/comandos/crear_admin.py
+index 6019021..d67a43f 100644
+--- a/backend/app/comandos/crear_admin.py
++++ b/backend/app/comandos/crear_admin.py
+@@ -7,9 +7,9 @@ Si el correo ya existe (por ejemplo, porque ya te registraste desde
+ basta con pasar cualquier valor de relleno en <contrasena> en ese caso.
+ Si no existe, se crea de una vez con rol ADMIN.
+ 
+-El rol ADMIN da acceso de solo lectura a /admin/tareas: todas las tareas
+-de todos los usuarios, sin poder editarlas ni eliminarlas. Es el mismo
+-patron que la cuenta ADMIN en Gestor de Casos QA y PRPagos.
++El rol ADMIN da acceso al panel de administracion (/admin/tareas y
++/admin/usuarios): puede ver, editar y eliminar las tareas de cualquier
++usuario, y suspender, reactivar o eliminar cuentas (salvo la propia).
+ """
+ 
+ import sys
+diff --git a/backend/app/dependencias.py b/backend/app/dependencias.py
+index 93702f1..69499ed 100644
+--- a/backend/app/dependencias.py
++++ b/backend/app/dependencias.py
+@@ -23,6 +23,12 @@ def _resolver(request: Request) -> dict | None:
+     if not usuario:
+         return None
+ 
++    # Cuenta suspendida por un admin: se trata igual que "no autenticado",
++    # sin importar que el token siga siendo valido. .get() porque los
++    # documentos creados antes de este campo no lo tienen (se asumen activos).
++    if not usuario.get("activo", True):
++        return None
++
+     # El middleware recogera este token para refrescar la cookie: es lo
+     # que hace que la inactividad sea deslizante.
+     request.state.token_renovado = renovar(carga)
+@@ -61,9 +67,11 @@ def es_admin(usuario: dict) -> bool:
+ def usuario_admin_web(request: Request) -> dict:
+     """Como usuario_web, pero exige ademas el rol ADMIN.
+ 
+-    Es una vista de solo lectura sobre las tareas de todo el mundo (para
+-    revision del portafolio), igual en espiritu a /admin/pagos en PRPagos
+-    o proyecto_autorizado en Gestor de Casos QA.
++    Da acceso al panel de administracion: revisar, editar y eliminar las
++    tareas de cualquier usuario, y gestionar las cuentas (suspender,
++    reactivar, eliminar). Mismo espiritu que /admin/pagos en PRPagos o
++    proyecto_autorizado en Gestor de Casos QA, pero con permisos de
++    escritura reales sobre los datos ajenos.
+     """
+     usuario = usuario_web(request)
+     if not es_admin(usuario):
+diff --git a/backend/app/repositorio.py b/backend/app/repositorio.py
+index 394da39..1b6b73d 100644
+--- a/backend/app/repositorio.py
++++ b/backend/app/repositorio.py
+@@ -29,6 +29,7 @@ def crear_usuario(
+         "email": email.lower(),
+         "password": clave_cifrada,
+         "rol": rol,
++        "activo": True,
+         "creado_en": _ahora(),
+     }
+     try:
+@@ -69,6 +70,54 @@ def buscar_usuario(usuario_id: str) -> dict | None:
+     return usuarios.find_one({"_id": ObjectId(usuario_id)})
+ 
+ 
++def listar_usuarios() -> list[dict]:
++    """Todas las cuentas, sin el hash de password, para el panel admin."""
++    return list(usuarios.find({}, {"password": 0}).sort("creado_en", -1))
++
++
++def suspender_usuario(usuario_id: str) -> bool:
++    if not ObjectId.is_valid(usuario_id):
++        return False
++    resultado = usuarios.update_one(
++        {"_id": ObjectId(usuario_id)}, {"$set": {"activo": False}}
++    )
++    return resultado.matched_count > 0
++
++
++def reactivar_usuario(usuario_id: str) -> bool:
++    if not ObjectId.is_valid(usuario_id):
++        return False
++    resultado = usuarios.update_one(
++        {"_id": ObjectId(usuario_id)}, {"$set": {"activo": True}}
++    )
++    return resultado.matched_count > 0
++
++
++def eliminar_usuario(usuario_id: str) -> bool:
++    """Borrado duro de la cuenta.
++
++    No cascadea sus tareas: quedan huerfanas (con un usuario_id que ya no
++    resuelve a nadie). Para un proyecto de portafolio alcanza; en un
++    sistema real se cascadearia el borrado o se reasignaria el dueno.
++    """
++    if not ObjectId.is_valid(usuario_id):
++        return False
++    resultado = usuarios.delete_one({"_id": ObjectId(usuario_id)})
++    return resultado.deleted_count == 1
++
++
++def usuario_a_salida(documento: dict) -> dict:
++    """Convierte un documento de usuario (sin password) al formato de plantilla."""
++    return {
++        "id": str(documento["_id"]),
++        "nombre": documento["nombre"],
++        "email": documento["email"],
++        "rol": documento.get("rol", "USUARIO"),
++        "activo": documento.get("activo", True),
++        "creado_en": documento.get("creado_en"),
++    }
++
++
+ # ──────────────────────────────── tareas ───────────────────────────────
+ 
+ 
+@@ -116,16 +165,22 @@ def obtener_tarea(usuario_id: str, tarea_id: str) -> dict | None:
+     )
+ 
+ 
++def _cambios_estado(estado: Estado) -> dict:
++    """Arma el $set de un cambio de estado. Lo comparten cambiar_estado y
++    admin_cambiar_estado para no duplicar la logica de completada_en."""
++    return {
++        "estado": estado.value,
++        "completada_en": _ahora() if estado == Estado.COMPLETADA else None,
++    }
++
++
+ def cambiar_estado(usuario_id: str, tarea_id: str, estado: Estado) -> dict | None:
+     if not ObjectId.is_valid(tarea_id):
+         return None
+ 
+-    cambios = {"estado": estado.value}
+-    cambios["completada_en"] = _ahora() if estado == Estado.COMPLETADA else None
+-
+     return tareas.find_one_and_update(
+         {"_id": ObjectId(tarea_id), "usuario_id": ObjectId(usuario_id)},
+-        {"$set": cambios},
++        {"$set": _cambios_estado(estado)},
+         return_document=True,
+     )
+ 
+@@ -149,6 +204,37 @@ def eliminar_tarea(usuario_id: str, tarea_id: str) -> bool:
+     return resultado.deleted_count == 1
+ 
+ 
++def admin_actualizar_tarea(tarea_id: str, datos: dict) -> dict | None:
++    """Como actualizar_tarea, pero sin exigir dueno: filtra solo por _id
++    para que ADMIN pueda editar la tarea de cualquier usuario."""
++    if not ObjectId.is_valid(tarea_id):
++        return None
++    return tareas.find_one_and_update(
++        {"_id": ObjectId(tarea_id)},
++        {"$set": datos},
++        return_document=True,
++    )
++
++
++def admin_cambiar_estado(tarea_id: str, estado: Estado) -> dict | None:
++    """Como cambiar_estado, sin filtrar por dueno."""
++    if not ObjectId.is_valid(tarea_id):
++        return None
++    return tareas.find_one_and_update(
++        {"_id": ObjectId(tarea_id)},
++        {"$set": _cambios_estado(estado)},
++        return_document=True,
++    )
++
++
++def admin_eliminar_tarea(tarea_id: str) -> bool:
++    """Como eliminar_tarea, sin filtrar por dueno."""
++    if not ObjectId.is_valid(tarea_id):
++        return False
++    resultado = tareas.delete_one({"_id": ObjectId(tarea_id)})
++    return resultado.deleted_count == 1
++
++
+ def categorias_de(usuario_id: str) -> list[str]:
+     return sorted(tareas.distinct("categoria", {"usuario_id": ObjectId(usuario_id)}))
+ 
+diff --git a/backend/app/routers/admin.py b/backend/app/routers/admin.py
+index 034ad13..51b3d11 100644
+--- a/backend/app/routers/admin.py
++++ b/backend/app/routers/admin.py
+@@ -1,22 +1,27 @@
+-"""Vista de solo lectura para el rol ADMIN.
++"""Panel del rol ADMIN.
+ 
+-Muestra las tareas de todos los usuarios para poder revisar el proyecto
+-de punta a punta, sin poder editar ni eliminar nada ajeno -- mismo
+-espiritu que /admin/pagos en PRPagos y el acceso de ADMIN en Gestor de
+-Casos QA.
++Muestra las tareas y las cuentas de todos los usuarios para poder revisar
++el proyecto de punta a punta, y permite editar o eliminar tareas ajenas y
++suspender/reactivar/eliminar cuentas -- mismo espiritu que /admin/pagos en
++PRPagos y el acceso de ADMIN en Gestor de Casos QA, pero con permisos de
++escritura reales.
+ """
+ 
+-from fastapi import APIRouter, Depends, Request
+-from fastapi.responses import HTMLResponse
++from fastapi import APIRouter, Depends, Form, HTTPException, Request, status
++from fastapi.responses import HTMLResponse, RedirectResponse
+ from fastapi.templating import Jinja2Templates
+ 
+ from app import repositorio
+ from app.dependencias import usuario_admin_web
++from app.esquemas import Estado
+ 
+ router = APIRouter()
+ plantillas = Jinja2Templates(directory="app/templates")
+ 
+ 
++# ──────────────────────────────── tareas ───────────────────────────────
++
++
+ @router.get("/admin/tareas", response_class=HTMLResponse)
+ def panel_admin(request: Request, usuario: dict = Depends(usuario_admin_web)):
+     documentos = repositorio.listar_todas_las_tareas()
+@@ -31,3 +36,88 @@ def panel_admin(request: Request, usuario: dict = Depends(usuario_admin_web)):
+             "total_usuarios": repositorio.contar_usuarios(),
+         },
+     )
++
++
++@router.post("/admin/tareas/{tarea_id}/editar")
++def admin_editar_tarea(
++    tarea_id: str,
++    titulo: str = Form(...),
++    descripcion: str = Form(""),
++    estado: str = Form(...),
++    usuario: dict = Depends(usuario_admin_web),
++):
++    repositorio.admin_actualizar_tarea(
++        tarea_id,
++        {
++            "titulo": titulo.strip(),
++            "descripcion": descripcion.strip() or None,
++            "estado": Estado(estado).value,
++        },
++    )
++    return RedirectResponse("/admin/tareas", status_code=303)
++
++
++@router.post("/admin/tareas/{tarea_id}/estado")
++def admin_cambiar_estado_tarea(
++    tarea_id: str,
++    estado: str = Form(...),
++    usuario: dict = Depends(usuario_admin_web),
++):
++    repositorio.admin_cambiar_estado(tarea_id, Estado(estado))
++    return RedirectResponse("/admin/tareas", status_code=303)
++
++
++@router.post("/admin/tareas/{tarea_id}/eliminar")
++def admin_eliminar_tarea(tarea_id: str, usuario: dict = Depends(usuario_admin_web)):
++    repositorio.admin_eliminar_tarea(tarea_id)
++    return RedirectResponse("/admin/tareas", status_code=303)
++
++
++# ─────────────────────────────── usuarios ──────────────────────────────
++
++
++@router.get("/admin/usuarios", response_class=HTMLResponse)
++def panel_usuarios(request: Request, usuario: dict = Depends(usuario_admin_web)):
++    documentos = repositorio.listar_usuarios()
++
++    return plantillas.TemplateResponse(
++        request,
++        "admin_usuarios.html",
++        {
++            "usuario": usuario,
++            "activo": "admin_usuarios",
++            "usuarios": [repositorio.usuario_a_salida(d) for d in documentos],
++        },
++    )
++
++
++@router.post("/admin/usuarios/{usuario_id}/suspender")
++def admin_suspender_usuario(
++    usuario_id: str, usuario: dict = Depends(usuario_admin_web)
++):
++    if usuario_id == str(usuario["_id"]):
++        raise HTTPException(
++            status_code=status.HTTP_403_FORBIDDEN,
++            detail="No podes suspender tu propia cuenta",
++        )
++    repositorio.suspender_usuario(usuario_id)
++    return RedirectResponse("/admin/usuarios", status_code=303)
++
++
++@router.post("/admin/usuarios/{usuario_id}/reactivar")
++def admin_reactivar_usuario(
++    usuario_id: str, usuario: dict = Depends(usuario_admin_web)
++):
++    repositorio.reactivar_usuario(usuario_id)
++    return RedirectResponse("/admin/usuarios", status_code=303)
++
++
++@router.post("/admin/usuarios/{usuario_id}/eliminar")
++def admin_eliminar_usuario(usuario_id: str, usuario: dict = Depends(usuario_admin_web)):
++    if usuario_id == str(usuario["_id"]):
++        raise HTTPException(
++            status_code=status.HTTP_403_FORBIDDEN,
++            detail="No podes eliminar tu propia cuenta",
++        )
++    repositorio.eliminar_usuario(usuario_id)
++    return RedirectResponse("/admin/usuarios", status_code=303)
+diff --git a/backend/app/templates/admin_tareas.html b/backend/app/templates/admin_tareas.html
+index ed89a2d..beccdbe 100644
+--- a/backend/app/templates/admin_tareas.html
++++ b/backend/app/templates/admin_tareas.html
+@@ -6,7 +6,7 @@
+ <header class="mb-8">
+     <h1 class="text-3xl font-bold tracking-tight">Panel de administración</h1>
+     <p class="text-slate-500 dark:text-slate-400 mt-1">
+-        Vista de solo lectura sobre las tareas de todos los usuarios, para revisión del proyecto.
++        Tareas de todos los usuarios. Podés editar el estado, el contenido o eliminar cualquiera.
+     </p>
+ </header>
+ 
+@@ -35,6 +35,7 @@
+                     <th>Prioridad</th>
+                     <th>Estado</th>
+                     <th>Creada</th>
++                    <th>Acciones</th>
+                 </tr>
+             </thead>
+             <tbody>
+@@ -47,12 +48,40 @@
+                     </td>
+                     <td>{{ t.categoria }}</td>
+                     <td><span class="pastilla prioridad-{{ t.prioridad }}">{{ t.prioridad }}</span></td>
+-                    <td>{{ t.estado }}</td>
+-                    <td>{{ t.creada_en.strftime("%Y-%m-%d %H:%M") }}</td>
++                    <td>
++                        <form method="post" action="/admin/tareas/{{ t.id }}/estado">
++                            <select name="estado" class="campo text-xs py-1" onchange="this.form.submit()">
++                                <option value="pendiente" {% if t.estado == 'pendiente' %}selected{% endif %}>pendiente</option>
++                                <option value="en_progreso" {% if t.estado == 'en_progreso' %}selected{% endif %}>en progreso</option>
++                                <option value="completada" {% if t.estado == 'completada' %}selected{% endif %}>completada</option>
++                            </select>
++                        </form>
++                    </td>
++                    <td class="whitespace-nowrap">{{ t.creada_en.strftime("%Y-%m-%d %H:%M") }}</td>
++                    <td class="whitespace-nowrap relative">
++                        <details class="inline-block">
++                            <summary class="cursor-pointer select-none text-xs font-medium text-indigo-600 dark:text-indigo-400 hover:underline">Editar</summary>
++                            <form method="post" action="/admin/tareas/{{ t.id }}/editar"
++                                  class="absolute z-10 mt-2 w-72 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg p-4 space-y-2">
++                                <input type="text" name="titulo" value="{{ t.titulo }}" required maxlength="140" class="campo">
++                                <textarea name="descripcion" maxlength="1000" rows="2" class="campo" placeholder="Descripción">{{ t.descripcion or '' }}</textarea>
++                                <select name="estado" class="campo">
++                                    <option value="pendiente" {% if t.estado == 'pendiente' %}selected{% endif %}>pendiente</option>
++                                    <option value="en_progreso" {% if t.estado == 'en_progreso' %}selected{% endif %}>en progreso</option>
++                                    <option value="completada" {% if t.estado == 'completada' %}selected{% endif %}>completada</option>
++                                </select>
++                                <button type="submit" class="boton-primario w-full text-sm py-1.5">Guardar</button>
++                            </form>
++                        </details>
++                        <form method="post" action="/admin/tareas/{{ t.id }}/eliminar" class="inline"
++                              onsubmit="return confirm('¿Eliminar esta tarea de {{ t.usuario_nombre }}?');">
++                            <button type="submit" class="text-xs font-medium text-rose-500 hover:text-rose-600 hover:underline ml-3">Eliminar</button>
++                        </form>
++                    </td>
+                 </tr>
+                 {% else %}
+                 <tr>
+-                    <td colspan="6" class="text-center text-slate-400 dark:text-slate-500 py-6">Todavía no hay tareas registradas.</td>
++                    <td colspan="7" class="text-center text-slate-400 dark:text-slate-500 py-6">Todavía no hay tareas registradas.</td>
+                 </tr>
+                 {% endfor %}
+             </tbody>
+diff --git a/backend/app/templates/admin_usuarios.html b/backend/app/templates/admin_usuarios.html
+new file mode 100644
+index 0000000..45b86ce
+--- /dev/null
++++ b/backend/app/templates/admin_usuarios.html
+@@ -0,0 +1,79 @@
++{% extends "base.html" %}
++{% set activo = 'admin_usuarios' %}
++{% block titulo %}Usuarios · Admin · TaskFlow{% endblock %}
++
++{% block contenido %}
++<header class="mb-8">
++    <h1 class="text-3xl font-bold tracking-tight">Cuentas de usuario</h1>
++    <p class="text-slate-500 dark:text-slate-400 mt-1">
++        Suspendé, reactivá o eliminá cuentas. No podés hacerlo sobre la tuya propia.
++    </p>
++</header>
++
++<div class="panel">
++    <h2 class="panel-titulo">Todas las cuentas</h2>
++    <p class="panel-nota">Ordenadas por fecha de alta, más recientes primero.</p>
++
++    <div class="overflow-x-auto">
++        <table class="tabla-datos">
++            <thead>
++                <tr>
++                    <th>Nombre</th>
++                    <th>Correo</th>
++                    <th>Rol</th>
++                    <th>Estado</th>
++                    <th>Alta</th>
++                    <th>Acciones</th>
++                </tr>
++            </thead>
++            <tbody>
++                {% for u in usuarios %}
++                <tr>
++                    <td class="font-medium text-slate-700 dark:text-slate-300">{{ u.nombre }}</td>
++                    <td class="text-slate-500 dark:text-slate-400">{{ u.email }}</td>
++                    <td>
++                        {% if u.rol == 'ADMIN' %}
++                        <span class="pastilla bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300">ADMIN</span>
++                        {% else %}
++                        <span class="pastilla bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">usuario</span>
++                        {% endif %}
++                    </td>
++                    <td>
++                        {% if u.activo %}
++                        <span class="pastilla bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300">activa</span>
++                        {% else %}
++                        <span class="pastilla bg-rose-50 dark:bg-rose-950 text-rose-700 dark:text-rose-300">suspendida</span>
++                        {% endif %}
++                    </td>
++                    <td class="whitespace-nowrap">{{ u.creado_en.strftime("%Y-%m-%d") if u.creado_en else "—" }}</td>
++                    <td class="whitespace-nowrap">
++                        {% if u.id == usuario._id|string %}
++                        <span class="text-xs text-slate-400 dark:text-slate-500">Tu cuenta</span>
++                        {% else %}
++                            {% if u.activo %}
++                            <form method="post" action="/admin/usuarios/{{ u.id }}/suspender" class="inline"
++                                  onsubmit="return confirm('¿Suspender la cuenta de {{ u.nombre }}?');">
++                                <button type="submit" class="text-xs font-medium text-amber-600 hover:text-amber-700 hover:underline">Suspender</button>
++                            </form>
++                            {% else %}
++                            <form method="post" action="/admin/usuarios/{{ u.id }}/reactivar" class="inline">
++                                <button type="submit" class="text-xs font-medium text-emerald-600 hover:text-emerald-700 hover:underline">Reactivar</button>
++                            </form>
++                            {% endif %}
++                            <form method="post" action="/admin/usuarios/{{ u.id }}/eliminar" class="inline"
++                                  onsubmit="return confirm('¿Eliminar definitivamente la cuenta de {{ u.nombre }}? Sus tareas quedarán huérfanas.');">
++                                <button type="submit" class="text-xs font-medium text-rose-500 hover:text-rose-600 hover:underline ml-3">Eliminar</button>
++                            </form>
++                        {% endif %}
++                    </td>
++                </tr>
++                {% else %}
++                <tr>
++                    <td colspan="6" class="text-center text-slate-400 dark:text-slate-500 py-6">Todavía no hay cuentas registradas.</td>
++                </tr>
++                {% endfor %}
++            </tbody>
++        </table>
++    </div>
++</div>
++{% endblock %}
+diff --git a/backend/app/templates/base.html b/backend/app/templates/base.html
+index 6b71c70..b110a2f 100644
+--- a/backend/app/templates/base.html
++++ b/backend/app/templates/base.html
+@@ -35,6 +35,7 @@
+                 <a href="/datos" class="nav-enlace {% if activo == 'datos' %}nav-activo{% endif %}">Datos</a>
+                 {% if usuario.rol == 'ADMIN' %}
+                 <a href="/admin/tareas" class="nav-enlace {% if activo == 'admin' %}nav-activo{% endif %}">Admin</a>
++                <a href="/admin/usuarios" class="nav-enlace {% if activo == 'admin_usuarios' %}nav-activo{% endif %}">Usuarios</a>
+                 {% endif %}
+                 <a href="/docs" class="nav-enlace" target="_blank" rel="noopener">API ↗</a>
+             </div>
+-- 
+2.43.0
+

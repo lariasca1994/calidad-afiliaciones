@@ -1,0 +1,525 @@
+From 74ae88284b48640fcc2365f0850cd5ce5f17fbed Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Fri, 25 Sep 2026 04:20:23 +0000
+Subject: [PATCH] =?UTF-8?q?feat:=20dar=20al=20rol=20ADMIN=20gesti=C3=B3n?=
+ =?UTF-8?q?=20real=20(antes=20solo=20lectura)?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+- Borrado real (hard delete) de proyectos (admin-only, con cascada
+  de suites/casos/ejecuciones/defectos), suites y casos (dueño o
+  admin, vía proyecto_autorizado, misma cascada).
+- Gestión de cuentas de usuario, no existía nada antes: nuevo router
+  /admin/usuarios (listar, suspender, reactivar, eliminar), todo
+  admin-only y con protección para que un admin no pueda
+  suspenderse/eliminarse a sí mismo.
+- usuario_actual() ahora trata una cuenta suspendida como sesión
+  inválida, con efecto inmediato.
+- Editar ajeno ya funcionaba para admin vía proyecto_autorizado, no
+  se tocó esa parte.
+
+Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01T6T4vwKtRkakDWF6qtE2aC
+---
+ backend/app/dependencias.py                | 11 +++-
+ backend/app/main.py                        |  2 +
+ backend/app/repositorios/casos_prueba.py   | 15 ++++++
+ backend/app/repositorios/proyectos.py      | 25 ++++++++-
+ backend/app/repositorios/suites.py         | 25 +++++++++
+ backend/app/repositorios/usuarios.py       | 49 +++++++++++++++++
+ backend/app/routers/web_casos.py           | 14 +++++
+ backend/app/routers/web_proyectos.py       | 11 +++-
+ backend/app/routers/web_suites.py          | 11 ++++
+ backend/app/routers/web_usuarios.py        | 51 ++++++++++++++++++
+ backend/app/static/css/estilos.css         | 15 ++++++
+ backend/app/templates/admin/usuarios.html  | 61 ++++++++++++++++++++++
+ backend/app/templates/base.html            |  3 ++
+ backend/app/templates/casos/lista.html     |  4 ++
+ backend/app/templates/proyectos/lista.html |  4 ++
+ backend/app/templates/suites/lista.html    |  4 ++
+ 16 files changed, 301 insertions(+), 4 deletions(-)
+ create mode 100644 backend/app/routers/web_usuarios.py
+ create mode 100644 backend/app/templates/admin/usuarios.html
+
+diff --git a/backend/app/dependencias.py b/backend/app/dependencias.py
+index aaba576..1a57a2d 100644
+--- a/backend/app/dependencias.py
++++ b/backend/app/dependencias.py
+@@ -17,14 +17,21 @@ class NoAutorizado(Exception):
+ 
+ 
+ def usuario_actual(request: Request) -> dict | None:
+-    """Devuelve el usuario de la sesion activa, o None si no hay ninguna."""
++    """Devuelve el usuario de la sesion activa, o None si no hay ninguna.
++
++    El usuario se relee de Mongo por _id en cada request (no solo del JWT),
++    asi que una cuenta que un ADMIN acaba de suspender queda deslogueada de
++    inmediato, sin esperar a que expire el token."""
+     token = request.cookies.get(COOKIE_SESION)
+     if not token:
+         return None
+     carga = leer_token(token)
+     if not carga:
+         return None
+-    return buscar_por_id(carga["sub"])
++    usuario = buscar_por_id(carga["sub"])
++    if usuario is None or not usuario.get("activo", True):
++        return None
++    return usuario
+ 
+ 
+ def exigir_login(request: Request) -> dict:
+diff --git a/backend/app/main.py b/backend/app/main.py
+index 424981f..d290c6a 100644
+--- a/backend/app/main.py
++++ b/backend/app/main.py
+@@ -16,6 +16,7 @@ from app.routers import (
+     web_ejecuciones,
+     web_proyectos,
+     web_suites,
++    web_usuarios,
+ )
+ 
+ app = FastAPI(title="Gestor de Casos de Prueba QA")
+@@ -59,3 +60,4 @@ app.include_router(web_casos.router)
+ app.include_router(web_ejecuciones.router)
+ app.include_router(web_defectos.router)
+ app.include_router(web_dashboard.router)
++app.include_router(web_usuarios.router)
+diff --git a/backend/app/repositorios/casos_prueba.py b/backend/app/repositorios/casos_prueba.py
+index 3c65e0a..6d206e5 100644
+--- a/backend/app/repositorios/casos_prueba.py
++++ b/backend/app/repositorios/casos_prueba.py
+@@ -79,3 +79,18 @@ def actualizar(
+         return resultado.matched_count > 0
+     except Exception:
+         return False
++
++
++def eliminar(caso_id: str) -> bool:
++    """Hard delete del caso junto con sus ejecuciones y los defectos
++    vinculados a ellas, para no dejar huerfanos. Se permite a dueno o ADMIN
++    (se valida en el router con proyecto_autorizado), igual que editar."""
++    db = obtener_db()
++    try:
++        oid = ObjectId(caso_id)
++    except Exception:
++        return False
++    db.defectos.delete_many({"caso_id": caso_id})
++    db.ejecuciones.delete_many({"caso_id": caso_id})
++    resultado = db.casos_prueba.delete_one({"_id": oid})
++    return resultado.deleted_count > 0
+diff --git a/backend/app/repositorios/proyectos.py b/backend/app/repositorios/proyectos.py
+index 5802b8a..d77f5f9 100644
+--- a/backend/app/repositorios/proyectos.py
++++ b/backend/app/repositorios/proyectos.py
+@@ -54,7 +54,8 @@ def actualizar(proyecto_id: str, nombre: str, descripcion: str) -> bool:
+ 
+ def archivar(proyecto_id: str) -> bool:
+     """Solo ADMIN puede llamar a esto (se valida en el router). No se borra,
+-    se marca inactivo: conserva las suites/casos ya vinculados a el."""
++    se marca inactivo: conserva las suites/casos ya vinculados a el. Para el
++    borrado real (irreversible) ver eliminar()."""
+     db = obtener_db()
+     try:
+         resultado = db.proyectos.update_one(
+@@ -63,3 +64,25 @@ def archivar(proyecto_id: str) -> bool:
+         return resultado.matched_count > 0
+     except Exception:
+         return False
++
++
++def eliminar(proyecto_id: str) -> bool:
++    """Hard delete del proyecto y de todo lo que cuelga de el. Solo ADMIN
++    puede llamar a esto (se valida en el router) -- a diferencia de
++    archivar(), esto es irreversible.
++
++    suites, casos_prueba, ejecuciones y defectos guardan todos un campo
++    proyecto_id (string, no ObjectId) apuntando a este proyecto, asi que se
++    puede borrar en cascada por ese campo directamente sin tener que ir
++    coleccion por coleccion via suite_id/caso_id."""
++    db = obtener_db()
++    try:
++        oid = ObjectId(proyecto_id)
++    except Exception:
++        return False
++    db.defectos.delete_many({"proyecto_id": proyecto_id})
++    db.ejecuciones.delete_many({"proyecto_id": proyecto_id})
++    db.casos_prueba.delete_many({"proyecto_id": proyecto_id})
++    db.suites.delete_many({"proyecto_id": proyecto_id})
++    resultado = db.proyectos.delete_one({"_id": oid})
++    return resultado.deleted_count > 0
+diff --git a/backend/app/repositorios/suites.py b/backend/app/repositorios/suites.py
+index a9ed28d..25b112c 100644
+--- a/backend/app/repositorios/suites.py
++++ b/backend/app/repositorios/suites.py
+@@ -44,3 +44,28 @@ def actualizar(suite_id: str, nombre: str, descripcion: str) -> bool:
+         return resultado.matched_count > 0
+     except Exception:
+         return False
++
++
++def eliminar(suite_id: str) -> bool:
++    """Hard delete de la suite y de sus casos, para no dejar huerfanos. Se
++    permite a dueno o ADMIN (se valida en el router con proyecto_autorizado),
++    igual que editar.
++
++    casos_prueba tiene suite_id, pero ejecuciones y defectos solo guardan
++    caso_id (no suite_id), asi que primero hay que ubicar los ids de los
++    casos de esta suite para poder borrar en cascada tambien sus
++    ejecuciones/defectos."""
++    db = obtener_db()
++    try:
++        oid = ObjectId(suite_id)
++    except Exception:
++        return False
++    caso_ids = [
++        str(caso["_id"]) for caso in db.casos_prueba.find({"suite_id": suite_id}, {"_id": 1})
++    ]
++    if caso_ids:
++        db.defectos.delete_many({"caso_id": {"$in": caso_ids}})
++        db.ejecuciones.delete_many({"caso_id": {"$in": caso_ids}})
++    db.casos_prueba.delete_many({"suite_id": suite_id})
++    resultado = db.suites.delete_one({"_id": oid})
++    return resultado.deleted_count > 0
+diff --git a/backend/app/repositorios/usuarios.py b/backend/app/repositorios/usuarios.py
+index af54c9e..d7373b8 100644
+--- a/backend/app/repositorios/usuarios.py
++++ b/backend/app/repositorios/usuarios.py
+@@ -19,6 +19,7 @@ def crear_usuario(email: str, nombre: str, contrasena: str, rol: str = ROL_QA) -
+             "password_hash": cifrar(contrasena),
+             "rol": rol,
+             "fecha_creacion": datetime.now(timezone.utc),
++            "activo": True,
+         }
+     )
+     return str(resultado.inserted_id)
+@@ -39,3 +40,51 @@ def buscar_por_id(usuario_id: str) -> Optional[dict]:
+ 
+ def contar_usuarios() -> int:
+     return obtener_db().usuarios.count_documents({})
++
++
++def listar_todos() -> list[dict]:
++    """Todas las cuentas para la pantalla de gestion de usuarios (solo ADMIN,
++    se valida en el router). Nunca devuelve password_hash."""
++    db = obtener_db()
++    return list(db.usuarios.find({}, {"password_hash": 0}).sort("nombre", 1))
++
++
++def suspender(usuario_id: str) -> bool:
++    """Marca la cuenta como inactiva: usuario_actual() la trata como si no
++    hubiera sesion valida, con efecto inmediato (no hay que esperar a que
++    expire el token). No se toca el rol ni se borra nada."""
++    db = obtener_db()
++    try:
++        resultado = db.usuarios.update_one(
++            {"_id": ObjectId(usuario_id)}, {"$set": {"activo": False}}
++        )
++        return resultado.matched_count > 0
++    except Exception:
++        return False
++
++
++def reactivar(usuario_id: str) -> bool:
++    db = obtener_db()
++    try:
++        resultado = db.usuarios.update_one(
++            {"_id": ObjectId(usuario_id)}, {"$set": {"activo": True}}
++        )
++        return resultado.matched_count > 0
++    except Exception:
++        return False
++
++
++def eliminar(usuario_id: str) -> bool:
++    """Hard delete de la cuenta. A proposito NO cascadea sus proyectos,
++    casos, ejecuciones ni defectos -- este es un proyecto de portafolio y
++    borrar el historial de trabajo de alguien junto con su cuenta es mas
++    riesgo que beneficio; esos documentos quedan huerfanos con el
++    creado_por/ejecutado_por apuntando a un usuario que ya no existe, algo
++    aceptable para esta demo (en un sistema real se reasignarian o se
++    bloquearia el borrado mientras tenga proyectos)."""
++    db = obtener_db()
++    try:
++        resultado = db.usuarios.delete_one({"_id": ObjectId(usuario_id)})
++        return resultado.deleted_count > 0
++    except Exception:
++        return False
+diff --git a/backend/app/routers/web_casos.py b/backend/app/routers/web_casos.py
+index 5987116..078f91e 100644
+--- a/backend/app/routers/web_casos.py
++++ b/backend/app/routers/web_casos.py
+@@ -162,3 +162,17 @@ def editar(
+     return RedirectResponse(
+         url=f"/proyectos/{proyecto_id}/suites/{suite_id}/casos", status_code=303
+     )
++
++
++@router.post("/{caso_id}/eliminar")
++def eliminar(
++    proyecto_id: str,
++    suite_id: str,
++    caso_id: str,
++    usuario: dict = Depends(exigir_login),
++    proyecto: dict = Depends(proyecto_autorizado),
++):
++    repo_casos.eliminar(caso_id)
++    return RedirectResponse(
++        url=f"/proyectos/{proyecto_id}/suites/{suite_id}/casos", status_code=303
++    )
+diff --git a/backend/app/routers/web_proyectos.py b/backend/app/routers/web_proyectos.py
+index 74f6df9..6008eb6 100644
+--- a/backend/app/routers/web_proyectos.py
++++ b/backend/app/routers/web_proyectos.py
+@@ -1,4 +1,5 @@
+-"""Paginas de Proyectos: listar, crear, editar y archivar (solo ADMIN).
++"""Paginas de Proyectos: listar, crear, editar, archivar y eliminar (estas
++dos ultimas, solo ADMIN).
+ 
+ Cada QA solo ve y edita sus propios proyectos; el ADMIN ve y edita todos."""
+ 
+@@ -93,3 +94,11 @@ def editar(
+ def archivar(proyecto_id: str, usuario: dict = Depends(exigir_admin)):
+     repo_proyectos.archivar(proyecto_id)
+     return RedirectResponse(url="/proyectos", status_code=303)
++
++
++@router.post("/{proyecto_id}/eliminar")
++def eliminar(proyecto_id: str, usuario: dict = Depends(exigir_admin)):
++    """Borrado real e irreversible (a diferencia de archivar): solo ADMIN,
++    el dueno no puede hacerlo aunque sea su proyecto."""
++    repo_proyectos.eliminar(proyecto_id)
++    return RedirectResponse(url="/proyectos", status_code=303)
+diff --git a/backend/app/routers/web_suites.py b/backend/app/routers/web_suites.py
+index f163867..69519c3 100644
+--- a/backend/app/routers/web_suites.py
++++ b/backend/app/routers/web_suites.py
+@@ -103,3 +103,14 @@ def editar(
+ ):
+     repo_suites.actualizar(suite_id, nombre, descripcion)
+     return RedirectResponse(url=f"/proyectos/{proyecto_id}/suites", status_code=303)
++
++
++@router.post("/{suite_id}/eliminar")
++def eliminar(
++    proyecto_id: str,
++    suite_id: str,
++    usuario: dict = Depends(exigir_login),
++    proyecto: dict = Depends(proyecto_autorizado),
++):
++    repo_suites.eliminar(suite_id)
++    return RedirectResponse(url=f"/proyectos/{proyecto_id}/suites", status_code=303)
+diff --git a/backend/app/routers/web_usuarios.py b/backend/app/routers/web_usuarios.py
+new file mode 100644
+index 0000000..8de07bc
+--- /dev/null
++++ b/backend/app/routers/web_usuarios.py
+@@ -0,0 +1,51 @@
++"""Gestion de cuentas de usuario: listar, suspender, reactivar y eliminar.
++
++Todo este router es exclusivo de ADMIN (Depends(exigir_admin) en cada ruta).
++Un ADMIN no puede suspenderse ni eliminarse a si mismo por accidente: eso
++rompería su propia sesion sin que se de cuenta, asi que esas dos rutas
++verifican que el usuario_id de la URL no sea el del ADMIN que hace el
++pedido."""
++
++from fastapi import APIRouter, Depends, Request
++from fastapi.responses import HTMLResponse, RedirectResponse
++from fastapi.templating import Jinja2Templates
++
++from app.dependencias import NoAutorizado, exigir_admin
++from app.repositorios import usuarios as repo_usuarios
++
++router = APIRouter(prefix="/admin/usuarios")
++templates = Jinja2Templates(directory="app/templates")
++
++
++@router.get("", response_class=HTMLResponse)
++def listar(request: Request, usuario: dict = Depends(exigir_admin)):
++    return templates.TemplateResponse(
++        "admin/usuarios.html",
++        {
++            "request": request,
++            "usuario": usuario,
++            "usuarios": repo_usuarios.listar_todos(),
++        },
++    )
++
++
++@router.post("/{usuario_id}/suspender")
++def suspender(usuario_id: str, usuario: dict = Depends(exigir_admin)):
++    if usuario_id == str(usuario["_id"]):
++        raise NoAutorizado()
++    repo_usuarios.suspender(usuario_id)
++    return RedirectResponse(url="/admin/usuarios", status_code=303)
++
++
++@router.post("/{usuario_id}/reactivar")
++def reactivar(usuario_id: str, usuario: dict = Depends(exigir_admin)):
++    repo_usuarios.reactivar(usuario_id)
++    return RedirectResponse(url="/admin/usuarios", status_code=303)
++
++
++@router.post("/{usuario_id}/eliminar")
++def eliminar(usuario_id: str, usuario: dict = Depends(exigir_admin)):
++    if usuario_id == str(usuario["_id"]):
++        raise NoAutorizado()
++    repo_usuarios.eliminar(usuario_id)
++    return RedirectResponse(url="/admin/usuarios", status_code=303)
+diff --git a/backend/app/static/css/estilos.css b/backend/app/static/css/estilos.css
+index 0550693..910350f 100644
+--- a/backend/app/static/css/estilos.css
++++ b/backend/app/static/css/estilos.css
+@@ -188,6 +188,21 @@ form .boton { margin-top: 1rem; }
+ .resultado-sin-ejecutar { background: #e6e8f0; color: #6b7085; }
+ [data-tema="oscuro"] .resultado-sin-ejecutar { background: #262a3a; color: #8990ab; }
+ 
++.estado-usuario {
++    display: inline-block;
++    padding: 0.2rem 0.6rem;
++    border-radius: 999px;
++    font-size: 0.78rem;
++    font-weight: 600;
++}
++.estado-usuario-activo { background: #dff5e3; color: #1e7a34; }
++.estado-usuario-suspendido { background: #fbe1e1; color: #b3261e; }
++[data-tema="oscuro"] .estado-usuario-activo { background: #163a22; color: #6fdb8f; }
++[data-tema="oscuro"] .estado-usuario-suspendido { background: #3a1a1a; color: #f29a94; }
++
++.enlace-boton-peligro { color: #b3261e; }
++[data-tema="oscuro"] .enlace-boton-peligro { color: #f29a94; }
++
+ .barra-progreso {
+     width: 100%;
+     height: 0.6rem;
+diff --git a/backend/app/templates/admin/usuarios.html b/backend/app/templates/admin/usuarios.html
+new file mode 100644
+index 0000000..65cd503
+--- /dev/null
++++ b/backend/app/templates/admin/usuarios.html
+@@ -0,0 +1,61 @@
++{% extends "base.html" %}
++{% block titulo %}Gestion de usuarios{% endblock %}
++{% block contenido %}
++<section class="cabecera-seccion">
++    <h1>Usuarios</h1>
++</section>
++
++{% if usuarios %}
++<table class="tabla">
++    <thead>
++        <tr>
++            <th>Nombre</th>
++            <th>Correo</th>
++            <th>Rol</th>
++            <th>Estado</th>
++            <th></th>
++        </tr>
++    </thead>
++    <tbody>
++        {% for u in usuarios %}
++        {% set u_id = u._id|string %}
++        {% set activo = u.get("activo", True) %}
++        <tr>
++            <td>{{ u.nombre }}</td>
++            <td>{{ u.email }}</td>
++            <td>{{ u.rol }}</td>
++            <td>
++                {% if activo %}
++                <span class="estado-usuario estado-usuario-activo">Activo</span>
++                {% else %}
++                <span class="estado-usuario estado-usuario-suspendido">Suspendido</span>
++                {% endif %}
++            </td>
++            <td class="acciones">
++                {% if u_id == usuario._id|string %}
++                <span class="texto-suave">(tu cuenta)</span>
++                {% else %}
++                    {% if activo %}
++                    <form method="post" action="/admin/usuarios/{{ u_id }}/suspender" class="en-linea"
++                          onsubmit="return confirm('¿Suspender la cuenta de {{ u.nombre }}? No va a poder iniciar sesion hasta que la reactives.');">
++                        <button type="submit" class="enlace-boton">Suspender</button>
++                    </form>
++                    {% else %}
++                    <form method="post" action="/admin/usuarios/{{ u_id }}/reactivar" class="en-linea">
++                        <button type="submit" class="enlace-boton">Reactivar</button>
++                    </form>
++                    {% endif %}
++                    <form method="post" action="/admin/usuarios/{{ u_id }}/eliminar" class="en-linea"
++                          onsubmit="return confirm('Esto borra la cuenta de {{ u.nombre }} de forma permanente. Sus proyectos y casos no se borran. ¿Continuar?');">
++                        <button type="submit" class="enlace-boton enlace-boton-peligro">Eliminar</button>
++                    </form>
++                {% endif %}
++            </td>
++        </tr>
++        {% endfor %}
++    </tbody>
++</table>
++{% else %}
++<p>No hay usuarios registrados.</p>
++{% endif %}
++{% endblock %}
+diff --git a/backend/app/templates/base.html b/backend/app/templates/base.html
+index f035ff0..743e03f 100644
+--- a/backend/app/templates/base.html
++++ b/backend/app/templates/base.html
+@@ -12,6 +12,9 @@
+         <nav class="nav-principal">
+             {% if usuario %}
+                 <a href="/proyectos">Proyectos</a>
++                {% if usuario.rol == "ADMIN" %}
++                <a href="/admin/usuarios">Usuarios</a>
++                {% endif %}
+                 <span class="rol-actual">{{ usuario.rol }}</span>
+                 <a href="/logout">Salir ({{ usuario.nombre }})</a>
+             {% else %}
+diff --git a/backend/app/templates/casos/lista.html b/backend/app/templates/casos/lista.html
+index 1bec0b5..6a4c57e 100644
+--- a/backend/app/templates/casos/lista.html
++++ b/backend/app/templates/casos/lista.html
+@@ -30,6 +30,10 @@
+             <td class="acciones">
+                 <a href="/proyectos/{{ proyecto._id }}/suites/{{ suite._id }}/casos/{{ caso._id }}/ejecuciones">Ejecutar</a>
+                 <a href="/proyectos/{{ proyecto._id }}/suites/{{ suite._id }}/casos/{{ caso._id }}/editar">Editar</a>
++                <form method="post" action="/proyectos/{{ proyecto._id }}/suites/{{ suite._id }}/casos/{{ caso._id }}/eliminar" class="en-linea"
++                      onsubmit="return confirm('Esto borra el caso junto con sus ejecuciones y defectos. No se puede deshacer. ¿Continuar?');">
++                    <button type="submit" class="enlace-boton enlace-boton-peligro">Eliminar</button>
++                </form>
+             </td>
+         </tr>
+         {% endfor %}
+diff --git a/backend/app/templates/proyectos/lista.html b/backend/app/templates/proyectos/lista.html
+index d711c82..9fe626c 100644
+--- a/backend/app/templates/proyectos/lista.html
++++ b/backend/app/templates/proyectos/lista.html
+@@ -29,6 +29,10 @@
+                 <form method="post" action="/proyectos/{{ proyecto._id }}/archivar" class="en-linea">
+                     <button type="submit" class="enlace-boton">Archivar</button>
+                 </form>
++                <form method="post" action="/proyectos/{{ proyecto._id }}/eliminar" class="en-linea"
++                      onsubmit="return confirm('Esto borra el proyecto y todas sus suites, casos, ejecuciones y defectos. No se puede deshacer. ¿Continuar?');">
++                    <button type="submit" class="enlace-boton enlace-boton-peligro">Eliminar</button>
++                </form>
+                 {% endif %}
+             </td>
+         </tr>
+diff --git a/backend/app/templates/suites/lista.html b/backend/app/templates/suites/lista.html
+index 7be673f..068361a 100644
+--- a/backend/app/templates/suites/lista.html
++++ b/backend/app/templates/suites/lista.html
+@@ -24,6 +24,10 @@
+             <td class="acciones">
+                 <a href="/proyectos/{{ proyecto._id }}/suites/{{ suite._id }}/editar">Editar</a>
+                 <a href="/proyectos/{{ proyecto._id }}/suites/{{ suite._id }}/casos">Ver casos</a>
++                <form method="post" action="/proyectos/{{ proyecto._id }}/suites/{{ suite._id }}/eliminar" class="en-linea"
++                      onsubmit="return confirm('Esto borra la suite y todos sus casos, ejecuciones y defectos. No se puede deshacer. ¿Continuar?');">
++                    <button type="submit" class="enlace-boton enlace-boton-peligro">Eliminar</button>
++                </form>
+             </td>
+         </tr>
+         {% endfor %}
+-- 
+2.43.0
+

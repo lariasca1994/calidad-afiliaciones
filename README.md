@@ -115,6 +115,122 @@ incluidos los criterios alternativos razonables y qué cambiaría al adoptarlos.
 
 ---
 
+## Diagrama de Arquitectura
+
+```mermaid
+flowchart TB
+
+    subgraph Clientes["👥 Interfaces de acceso"]
+        CLI["💻 Consola<br/>python setup.py"]
+        WebUI["🌐 Panel Web<br/>Navegador"]
+        Excel["📊 Excel<br/>Power Query / Power Pivot"]
+    end
+
+    subgraph Azure["☁️ Azure Container Apps"]
+        subgraph Panel["Panel Web — FastAPI + Uvicorn"]
+            Main["web/main.py<br/>Rutas y endpoints"]
+            Seguridad["web/seguridad.py<br/>Registro · JWT · bcrypt"]
+            Templates["web/templates/<br/>Jinja2 · tema claro/oscuro"]
+            Static["web/static/js/<br/>Interactividad"]
+        end
+    end
+
+    subgraph Pipeline["⚙️ Pipeline de procesamiento — Python"]
+        Generador["generador/<br/>datos_demo.py<br/>Datos sintéticos"]
+        subgraph ETL["proceso/ — ETL"]
+            Conexion["conexion.py<br/>Conexión a MySQL"]
+            Fuentes["fuentes.py<br/>Separadores · codificación"]
+            Carga["carga.py<br/>Carga por lotes"]
+            Esquema["esquema.py<br/>Ejecución de .sql"]
+            Analisis["analisis.py<br/>Indicadores · exportación"]
+            PipelineMain["pipeline.py<br/>Esquema + carga + consolidado"]
+        end
+        subgraph SQL["sql/ — Transformación"]
+            S1["01_esquema.sql<br/>Tablas de origen"]
+            S2["02_homologacion.sql<br/>Llave única · duplicidad"]
+            S3["03_consolidado.sql<br/>Clasificación · calidad"]
+            S4["03b_materializar.sql<br/>Tabla consolidado"]
+            S5["04_indicadores.sql<br/>Consultas del tablero"]
+            S6["05_usuarios.sql<br/>Cuentas del panel"]
+        end
+    end
+
+    subgraph Datos["🗄️ Capa de datos"]
+        MySQL[("MySQL 8<br/>Aiven (nube gestionada)<br/>Tablas: digital · sat · fisico<br/>historico · novedades · catalogo<br/>consolidado · usuarios")]
+    end
+
+    subgraph Infra["🔧 Infraestructura y despliegue"]
+        Docker["🐳 Docker<br/>Imagen del panel"]
+        GHA["⚙️ GitHub Actions<br/>CI/CD"]
+        AivenAPI["🔌 API de Aiven<br/>Encendido automático"]
+    end
+
+    %% ---- Flujo de datos ----
+    CLI -->|lee CSV| PipelineMain
+    WebUI -->|HTTPS| Main
+    Main --> Templates
+    Main --> Static
+    Main --> Seguridad
+    Seguridad -->|cookie httponly| WebUI
+    Main -->|botón generar| PipelineMain
+    Main -->|botón subir| Carga
+    Excel -->|conector ODBC| MySQL
+    Generador -->|CSV sintéticos| PipelineMain
+    PipelineMain --> Conexion
+    PipelineMain --> Fuentes
+    PipelineMain --> Carga
+    PipelineMain --> Esquema
+    PipelineMain --> Analisis
+    Esquema --> S1
+    Esquema --> S2
+    Esquema --> S3
+    Esquema --> S4
+    Esquema --> S5
+    Esquema --> S6
+    S1 --> MySQL
+    S2 --> MySQL
+    S3 --> MySQL
+    S4 --> MySQL
+    S5 --> MySQL
+    S6 --> MySQL
+    Carga -->|INSERT por lotes| MySQL
+    Analisis -->|SELECT| MySQL
+    AivenAPI -.->|despierta| MySQL
+    Docker -.->|despliegue| Azure
+    GHA -->|build & push| Docker
+
+    %% ---- Colores de marca (Brand Colors) ----
+    classDef python fill:#3572A5,stroke:#1A3A5C,stroke-width:2px,color:#FFFFFF,rx:12,ry:12;
+    classDef fastapi fill:#009688,stroke:#004D40,stroke-width:2px,color:#FFFFFF,rx:12,ry:12;
+    classDef mysql fill:#4479A1,stroke:#1F3A5F,stroke-width:2px,color:#FFFFFF;
+    classDef azure fill:#0078D4,stroke:#004578,stroke-width:2px,color:#FFFFFF,rx:12,ry:12;
+    classDef jinja fill:#B41717,stroke:#7F0000,stroke-width:2px,color:#FFFFFF,rx:10,ry:10;
+    classDef excel fill:#217346,stroke:#0F3D24,stroke-width:2px,color:#FFFFFF,rx:10,ry:10;
+    classDef docker fill:#2496ED,stroke:#0B6FC2,stroke-width:2px,color:#FFFFFF,rx:10,ry:10;
+    classDef github fill:#2088FF,stroke:#0D4A99,stroke-width:2px,color:#FFFFFF,rx:10,ry:10;
+    classDef security fill:#333333,stroke:#000000,stroke-width:2px,color:#FFFFFF,rx:10,ry:10;
+    classDef neutral fill:#F5F5F5,stroke:#CCCCCC,stroke-width:1px,color:#333333,rx:10,ry:10;
+
+    class CLI,WebUI neutral;
+    class Excel excel;
+    class Main,Templates,Static,S1,S2,S3,S4,S5,S6,Generador,Conexion,Fuentes,Carga,Esquema,Analisis,PipelineMain python;
+    class Seguridad security;
+    class MySQL mysql;
+    class Docker docker;
+    class GHA github;
+    class AivenAPI azure;
+
+    %% ---- Estilos de subgráficos ----
+    style Clientes fill:#FAFAFA,stroke:#DDDDDD,stroke-width:1px,rx:14,ry:14;
+    style Azure fill:#E1F5FE,stroke:#0078D4,stroke-width:2px,stroke-dasharray:6 4,rx:16,ry:16;
+    style Panel fill:#E0F2F1,stroke:#009688,stroke-width:1px,rx:12,ry:12;
+    style Pipeline fill:#F3E8FF,stroke:#3572A5,stroke-width:2px,stroke-dasharray:6 4,rx:16,ry:16;
+    style ETL fill:#E3F2FD,stroke:#3572A5,stroke-width:1px,rx:10,ry:10;
+    style SQL fill:#EDE7F6,stroke:#3572A5,stroke-width:1px,rx:10,ry:10;
+    style Datos fill:#E1F5FE,stroke:#4479A1,stroke-width:2px,stroke-dasharray:6 4,rx:16,ry:16;
+    style Infra fill:#F0F0F0,stroke:#2496ED,stroke-width:2px,stroke-dasharray:6 4,rx:16,ry:16;
+```
+
 ## Estructura
 
 ```

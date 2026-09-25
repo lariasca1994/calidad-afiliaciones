@@ -1,0 +1,346 @@
+From 2d180a6fd21f6e7f59aac375789b4f08449ac466 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Fri, 25 Sep 2026 04:20:41 +0000
+Subject: [PATCH] =?UTF-8?q?feat:=20dar=20al=20rol=20ADMIN=20gesti=C3=B3n?=
+ =?UTF-8?q?=20real=20sobre=20colecciones/pruebas=20ajenas?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+- obtener_coleccion_propia ya no excluye al admin: puede crear/borrar
+  pruebas y ejecutar colecciones ajenas, igual que el dueño.
+- La vista de detalle de colección ya no oculta esos controles para
+  el admin (antes el backend lo permitía pero la UI no lo exponía).
+- Gestión de cuentas de usuario, no existía nada antes: nuevo router
+  /admin/usuarios (listar, suspender, reactivar, eliminar), con
+  protección para no poder suspenderse/eliminarse a uno mismo, y
+  bloqueo (400) de eliminar una cuenta con colecciones/ejecuciones
+  propias en vez de romper por integridad referencial.
+- usuario_opcional ahora trata una cuenta suspendida como sesión
+  inválida, con efecto inmediato.
+- Recrea scripts/crear_admin.py (estaba borrado), parametrizado por
+  argv en vez de un email hardcodeado; sigue gitignored a propósito.
+
+Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01T6T4vwKtRkakDWF6qtE2aC
+---
+ app/dependencias.py                    |   6 +-
+ app/main.py                            |   3 +-
+ app/models.py                          |   5 ++
+ app/routers/colecciones.py             |   7 +-
+ app/routers/usuarios.py                | 107 +++++++++++++++++++++++++
+ app/seguridad.py                       |   8 +-
+ app/templates/admin/usuarios.html      |  60 ++++++++++++++
+ app/templates/base.html                |   3 +-
+ app/templates/colecciones/detalle.html |   2 +-
+ 9 files changed, 193 insertions(+), 8 deletions(-)
+ create mode 100644 app/routers/usuarios.py
+ create mode 100644 app/templates/admin/usuarios.html
+
+diff --git a/app/dependencias.py b/app/dependencias.py
+index 09f9d45..4f64fbb 100644
+--- a/app/dependencias.py
++++ b/app/dependencias.py
+@@ -30,12 +30,12 @@ def obtener_coleccion_propia(
+     db: Session = Depends(obtener_db),
+     usuario: Usuario = Depends(usuario_actual),
+ ) -> Coleccion:
+-    """Para crear/editar/ejecutar: tiene que ser el dueño, sin excepción
+-    para el admin — su rol es de solo lectura sobre lo ajeno."""
++    """Para crear/editar/ejecutar: tiene que ser el dueño, o el admin —
++    el admin puede gestionar (no solo mirar) colecciones ajenas."""
+     coleccion = db.get(Coleccion, coleccion_id)
+     if coleccion is None:
+         raise HTTPException(status.HTTP_404_NOT_FOUND, "Colección no encontrada")
+-    if coleccion.propietario_id != usuario.id:
++    if coleccion.propietario_id != usuario.id and not usuario.es_admin:
+         raise HTTPException(
+             status.HTTP_403_FORBIDDEN,
+             "Solo el dueño de la colección puede modificarla o ejecutarla",
+diff --git a/app/main.py b/app/main.py
+index 4b60ada..b22ace4 100644
+--- a/app/main.py
++++ b/app/main.py
+@@ -2,7 +2,7 @@ from fastapi import FastAPI
+ from fastapi.staticfiles import StaticFiles
+ 
+ from app.database import Base, engine
+-from app.routers import auth, colecciones, ejecuciones, web
++from app.routers import auth, colecciones, ejecuciones, usuarios, web
+ 
+ # Sin Alembic por ahora, a propósito: para el tamaño de este proyecto,
+ # crear las tablas que falten al arrancar (idempotente: no toca las que
+@@ -18,3 +18,4 @@ app.include_router(web.router)
+ app.include_router(auth.router)
+ app.include_router(colecciones.router)
+ app.include_router(ejecuciones.router)
++app.include_router(usuarios.router)
+diff --git a/app/models.py b/app/models.py
+index d060656..ac0a7d5 100644
+--- a/app/models.py
++++ b/app/models.py
+@@ -27,6 +27,11 @@ class Usuario(Base):
+     # usuarios (de solo lectura) — no crea, edita ni ejecuta nada ajeno.
+     # Cualquier otro valor ("usuario") solo ve y gestiona lo propio.
+     rol = Column(String(20), nullable=False, default="usuario")
++    # Cuenta suspendida (activo=False) no puede iniciar ni mantener sesión —
++    # se trata como "no autenticado" en usuario_opcional, con efecto
++    # inmediato porque el JWT no lleva este dato (se resuelve contra la DB
++    # en cada request).
++    activo = Column(Boolean, default=True, nullable=False)
+     creado_en = Column(DateTime, default=datetime.datetime.utcnow)
+ 
+     colecciones = relationship("Coleccion", back_populates="propietario")
+diff --git a/app/routers/colecciones.py b/app/routers/colecciones.py
+index 1d4e00e..f65d99a 100644
+--- a/app/routers/colecciones.py
++++ b/app/routers/colecciones.py
+@@ -71,7 +71,11 @@ def detalle(
+     coleccion: Coleccion = Depends(obtener_coleccion_visible),
+     db: Session = Depends(obtener_db),
+ ):
+-    es_propia = coleccion.propietario_id == usuario.id
++    # "es_propia" en este template controla si se muestran los controles de
++    # gestión (agregar/borrar prueba, ejecutar) -- el admin ya puede usarlos
++    # (ver obtener_coleccion_propia en dependencias.py), así que también
++    # cuenta como tal acá, aunque no sea el dueño real.
++    es_propia = coleccion.propietario_id == usuario.id or usuario.es_admin
+     ejecuciones = sorted(coleccion.ejecuciones, key=lambda e: e.fecha, reverse=True)[:10]
+     return plantillas.TemplateResponse(
+         request,
+@@ -80,6 +84,7 @@ def detalle(
+             "usuario": usuario,
+             "coleccion": coleccion,
+             "es_propia": es_propia,
++            "es_dueno": coleccion.propietario_id == usuario.id,
+             "ejecuciones": ejecuciones,
+         },
+     )
+diff --git a/app/routers/usuarios.py b/app/routers/usuarios.py
+new file mode 100644
+index 0000000..14de323
+--- /dev/null
++++ b/app/routers/usuarios.py
+@@ -0,0 +1,107 @@
++from fastapi import APIRouter, Depends, HTTPException, Request, status
++from fastapi.responses import RedirectResponse
++from fastapi.templating import Jinja2Templates
++from sqlalchemy.orm import Session
++
++from app.database import obtener_db
++from app.models import Ejecucion, Usuario
++from app.seguridad import usuario_actual
++
++router = APIRouter(prefix="/admin/usuarios")
++plantillas = Jinja2Templates(directory="app/templates")
++
++
++def _exigir_admin(usuario: Usuario) -> None:
++    # No hay un guard reusable de FastAPI para esto en el proyecto (a
++    # diferencia de obtener_coleccion_propia/visible, acá no hace falta
++    # resolver un recurso por id), así que se replica el mismo chequeo
++    # inline que ya usan colecciones.py/ejecuciones.py con es_admin.
++    if not usuario.es_admin:
++        raise HTTPException(status.HTTP_403_FORBIDDEN, "Solo un admin puede gestionar usuarios")
++
++
++@router.get("")
++def listar(
++    request: Request,
++    db: Session = Depends(obtener_db),
++    usuario: Usuario = Depends(usuario_actual),
++):
++    _exigir_admin(usuario)
++    usuarios = db.query(Usuario).order_by(Usuario.creado_en.desc()).all()
++    return plantillas.TemplateResponse(
++        request,
++        "admin/usuarios.html",
++        {"usuario": usuario, "usuarios": usuarios},
++    )
++
++
++@router.post("/{usuario_id}/suspender")
++def suspender(
++    usuario_id: int,
++    db: Session = Depends(obtener_db),
++    usuario: Usuario = Depends(usuario_actual),
++):
++    _exigir_admin(usuario)
++    if usuario_id == usuario.id:
++        raise HTTPException(status.HTTP_403_FORBIDDEN, "No podés suspender tu propia cuenta")
++    objetivo = db.get(Usuario, usuario_id)
++    if objetivo is None:
++        raise HTTPException(status.HTTP_404_NOT_FOUND, "Usuario no encontrado")
++    objetivo.activo = False
++    db.commit()
++    return RedirectResponse(url="/admin/usuarios", status_code=303)
++
++
++@router.post("/{usuario_id}/reactivar")
++def reactivar(
++    usuario_id: int,
++    db: Session = Depends(obtener_db),
++    usuario: Usuario = Depends(usuario_actual),
++):
++    _exigir_admin(usuario)
++    objetivo = db.get(Usuario, usuario_id)
++    if objetivo is None:
++        raise HTTPException(status.HTTP_404_NOT_FOUND, "Usuario no encontrado")
++    objetivo.activo = True
++    db.commit()
++    return RedirectResponse(url="/admin/usuarios", status_code=303)
++
++
++@router.post("/{usuario_id}/eliminar")
++def eliminar(
++    usuario_id: int,
++    db: Session = Depends(obtener_db),
++    usuario: Usuario = Depends(usuario_actual),
++):
++    _exigir_admin(usuario)
++    if usuario_id == usuario.id:
++        raise HTTPException(status.HTTP_403_FORBIDDEN, "No podés eliminar tu propia cuenta")
++    objetivo = db.get(Usuario, usuario_id)
++    if objetivo is None:
++        raise HTTPException(status.HTTP_404_NOT_FOUND, "Usuario no encontrado")
++
++    # Coleccion.propietario_id y Ejecucion.ejecutado_por_id son FKs
++    # NOT NULL hacia usuarios.id, y Usuario.colecciones no tiene cascade
++    # configurado (a diferencia de Coleccion -> Prueba/Ejecucion, que sí
++    # usa cascade="all, delete-orphan"). Borrar un usuario con colecciones
++    # propias, o con ejecuciones registradas a su nombre (por ejemplo, un
++    # admin que ejecutó una colección ajena), violaría esa FK y volaría
++    # con un 500 de integridad referencial. En vez de cascadear el borrado
++    # (destruiría colecciones/pruebas/ejecuciones sin que el admin lo haya
++    # pedido explícitamente), se opta por el camino simple y no
++    # destructivo: no permitir eliminar mientras existan esos vínculos, y
++    # sugerir suspender la cuenta en su lugar.
++    tiene_colecciones = bool(objetivo.colecciones)
++    tiene_ejecuciones = (
++        db.query(Ejecucion).filter(Ejecucion.ejecutado_por_id == usuario_id).first() is not None
++    )
++    if tiene_colecciones or tiene_ejecuciones:
++        raise HTTPException(
++            status.HTTP_400_BAD_REQUEST,
++            "No se puede eliminar: el usuario tiene colecciones o ejecuciones "
++            "registradas. Suspendé la cuenta en su lugar.",
++        )
++
++    db.delete(objetivo)
++    db.commit()
++    return RedirectResponse(url="/admin/usuarios", status_code=303)
+diff --git a/app/seguridad.py b/app/seguridad.py
+index b23d574..481121f 100644
+--- a/app/seguridad.py
++++ b/app/seguridad.py
+@@ -71,7 +71,13 @@ def usuario_opcional(request: Request, db: Session = Depends(obtener_db)) -> Usu
+     usuario_id = _decodificar_token(token)
+     if usuario_id is None:
+         return None
+-    return db.get(Usuario, usuario_id)
++    usuario = db.get(Usuario, usuario_id)
++    if usuario is not None and not usuario.activo:
++        # Cuenta suspendida por un admin: se trata igual que "no hay
++        # sesión" — el token puede seguir siendo válido, pero la cuenta
++        # ya no. Efecto inmediato porque acá se consulta la DB fresca.
++        return None
++    return usuario
+ 
+ 
+ def usuario_actual(
+diff --git a/app/templates/admin/usuarios.html b/app/templates/admin/usuarios.html
+new file mode 100644
+index 0000000..c4b1380
+--- /dev/null
++++ b/app/templates/admin/usuarios.html
+@@ -0,0 +1,60 @@
++{% extends "base.html" %}
++{% block titulo %}Usuarios — Verificador API{% endblock %}
++{% block contenido %}
++<div class="flex items-center justify-between mb-6">
++    <h1 class="text-2xl font-bold">Usuarios</h1>
++</div>
++
++<div class="overflow-x-auto">
++<table class="w-full text-sm border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden">
++    <thead class="bg-slate-100 dark:bg-slate-800">
++        <tr>
++            <th class="text-left px-3 py-2">Nombre</th>
++            <th class="text-left px-3 py-2">Email</th>
++            <th class="text-left px-3 py-2">Rol</th>
++            <th class="text-left px-3 py-2">Estado</th>
++            <th class="text-left px-3 py-2">Colecciones</th>
++            <th class="px-3 py-2"></th>
++        </tr>
++    </thead>
++    <tbody class="bg-white dark:bg-slate-900">
++        {% for u in usuarios %}
++        <tr class="border-t border-slate-100 dark:border-slate-800">
++            <td class="px-3 py-2">
++                {{ u.nombre }}
++                {% if u.id == usuario.id %}<span class="text-xs text-slate-400">(vos)</span>{% endif %}
++            </td>
++            <td class="px-3 py-2 font-mono">{{ u.email }}</td>
++            <td class="px-3 py-2">{{ u.rol }}</td>
++            <td class="px-3 py-2">
++                {% if u.activo %}
++                <span class="text-emerald-600 dark:text-emerald-400">Activo</span>
++                {% else %}
++                <span class="text-rose-600 dark:text-rose-400">Suspendido</span>
++                {% endif %}
++            </td>
++            <td class="px-3 py-2">{{ u.colecciones|length }}</td>
++            <td class="px-3 py-2 text-right whitespace-nowrap">
++                {% if u.id == usuario.id %}
++                <span class="text-xs text-slate-400">—</span>
++                {% else %}
++                    {% if u.activo %}
++                    <form method="post" action="/admin/usuarios/{{ u.id }}/suspender" class="inline">
++                        <button type="submit" class="text-amber-600 hover:underline text-xs">Suspender</button>
++                    </form>
++                    {% else %}
++                    <form method="post" action="/admin/usuarios/{{ u.id }}/reactivar" class="inline">
++                        <button type="submit" class="text-emerald-600 hover:underline text-xs">Reactivar</button>
++                    </form>
++                    {% endif %}
++                    <form method="post" action="/admin/usuarios/{{ u.id }}/eliminar" class="inline ml-3">
++                        <button type="submit" class="text-rose-500 hover:underline text-xs">Eliminar</button>
++                    </form>
++                {% endif %}
++            </td>
++        </tr>
++        {% endfor %}
++    </tbody>
++</table>
++</div>
++{% endblock %}
+diff --git a/app/templates/base.html b/app/templates/base.html
+index 50f1d48..9a9449e 100644
+--- a/app/templates/base.html
++++ b/app/templates/base.html
+@@ -45,7 +45,8 @@
+             {% if usuario %}
+                 <a href="/colecciones" class="hover:text-pg-light">Mis colecciones</a>
+                 {% if usuario.es_admin %}
+-                    <span class="text-xs uppercase tracking-wide bg-white/15 rounded-full px-2 py-0.5">Admin · solo lectura</span>
++                    <a href="/admin/usuarios" class="hover:text-pg-light">Usuarios</a>
++                    <span class="text-xs uppercase tracking-wide bg-white/15 rounded-full px-2 py-0.5">Admin</span>
+                 {% endif %}
+                 <form action="/logout" method="post" class="inline">
+                     <button type="submit" class="hover:text-pg-light">Salir</button>
+diff --git a/app/templates/colecciones/detalle.html b/app/templates/colecciones/detalle.html
+index ecedba2..2475b6a 100644
+--- a/app/templates/colecciones/detalle.html
++++ b/app/templates/colecciones/detalle.html
+@@ -6,7 +6,7 @@
+         <h1 class="text-2xl font-bold">{{ coleccion.nombre }}</h1>
+         {% if coleccion.descripcion %}<p class="text-slate-600 dark:text-slate-400 mt-1">{{ coleccion.descripcion }}</p>{% endif %}
+         {% if coleccion.url_base %}<p class="text-xs text-slate-500 dark:text-slate-500 mt-1 font-mono">{{ coleccion.url_base }}</p>{% endif %}
+-        {% if not es_propia %}<span class="inline-block mt-2 text-xs uppercase tracking-wide bg-slate-200 dark:bg-slate-800 rounded-full px-2 py-0.5">Vista de solo lectura (admin)</span>{% endif %}
++        {% if not es_dueno and usuario.es_admin %}<span class="inline-block mt-2 text-xs uppercase tracking-wide bg-slate-200 dark:bg-slate-800 rounded-full px-2 py-0.5">Gestionando como admin</span>{% endif %}
+     </div>
+     {% if es_propia %}
+     <form method="post" action="/colecciones/{{ coleccion.id }}/ejecutar">
+-- 
+2.43.0
+

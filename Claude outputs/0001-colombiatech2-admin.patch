@@ -1,0 +1,1755 @@
+From aa28d1280cda6d0541db67a9463931fa7738e977 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Fri, 25 Sep 2026 04:20:06 +0000
+Subject: [PATCH] =?UTF-8?q?feat:=20agregar=20rol=20admin=20(gesti=C3=B3n?=
+ =?UTF-8?q?=20real=20de=20usuarios=20y=20casas)?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+- User: nuevos campos role ('user'|'admin') y active (para suspender
+  cuentas). El registro público nunca puede setearlos.
+- JWT: el payload ahora lleva el rol; la estrategia relee el usuario
+  de la base en cada request para que suspender una cuenta o
+  cambiarle el rol tenga efecto inmediato.
+- Nuevo RolesGuard + @Roles() decorator (REST y GraphQL).
+- Users: un admin puede ver/editar/borrar cualquier cuenta, listar
+  todas, y suspender/reactivar cuentas ajenas (nunca la propia).
+- Houses: se agrega ownerId (antes cualquier usuario logueado podía
+  editar/borrar la casa de cualquier otro). Ahora solo el dueño o un
+  admin pueden hacerlo; casas viejas sin dueño asignado mantienen el
+  comportamiento anterior para no romper datos existentes.
+- upload.controller: corrige que cualquiera podía cambiar el avatar
+  de otro usuario o la imagen de una casa ajena sin chequeo alguno.
+- Nuevo script src/scripts/crear-admin.ts para crear o ascender
+  cuentas a admin sin pasar por el registro público.
+
+Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01T6T4vwKtRkakDWF6qtE2aC
+---
+ backend/package.json                    | 171 +++++++++++------------
+ backend/src/auth/auth.service.ts        | 106 +++++++-------
+ backend/src/auth/jwt.strategy.ts        |  67 +++++----
+ backend/src/auth/roles.decorator.ts     |  14 ++
+ backend/src/auth/roles.guard.ts         |  35 +++++
+ backend/src/houses/house.entity.ts      |  89 ++++++------
+ backend/src/houses/house.schema.ts      |  38 ++---
+ backend/src/houses/houses.controller.ts | 129 +++++++++--------
+ backend/src/houses/houses.resolver.ts   |  97 +++++++------
+ backend/src/houses/houses.service.ts    | 147 ++++++++++++--------
+ backend/src/scripts/crear-admin.ts      |  94 +++++++++++++
+ backend/src/upload/upload.controller.ts | 175 +++++++++++++-----------
+ backend/src/users/user.entity.ts        |  52 +++----
+ backend/src/users/user.schema.ts        |  24 ++--
+ backend/src/users/users.controller.ts   |  43 ++++--
+ backend/src/users/users.resolver.ts     | 127 ++++++++++-------
+ backend/src/users/users.service.ts      | 158 +++++++++++----------
+ 17 files changed, 939 insertions(+), 627 deletions(-)
+ create mode 100644 backend/src/auth/roles.decorator.ts
+ create mode 100644 backend/src/auth/roles.guard.ts
+ create mode 100644 backend/src/scripts/crear-admin.ts
+
+diff --git a/backend/package.json b/backend/package.json
+index d35a1ef..3e1c5ac 100644
+--- a/backend/package.json
++++ b/backend/package.json
+@@ -1,85 +1,86 @@
+-{
+-  "name": "colombia-tech-backend",
+-  "version": "2.0.0",
+-  "description": "Backend unificado (REST + GraphQL + WebSockets) para el proyecto ColombiaTech — reemplaza Nest/ y Tech/ por una sola base.",
+-  "scripts": {
+-    "build": "nest build",
+-    "start": "nest start",
+-    "start:dev": "nest start --watch",
+-    "start:prod": "node dist/main",
+-    "lint": "eslint \"{src,test}/**/*.ts\" --fix",
+-    "test": "jest",
+-    "test:e2e": "jest --config ./test/jest-e2e.json",
+-    "crear:usuario-revision": "ts-node -r tsconfig-paths/register src/scripts/crear-usuario-revision.ts"
+-  },
+-  "dependencies": {
+-    "@apollo/server": "^5.5.1",
+-    "@as-integrations/express5": "^1.1.2",
+-    "@nestjs/apollo": "^13.4.2",
+-    "@nestjs/common": "^11.1.28",
+-    "@nestjs/core": "^11.1.28",
+-    "@nestjs/graphql": "^13.4.2",
+-    "@nestjs/jwt": "^11.0.2",
+-    "@nestjs/mongoose": "^11.0.4",
+-    "@nestjs/passport": "^11.0.5",
+-    "@nestjs/platform-express": "^11.1.28",
+-    "@nestjs/platform-socket.io": "^11.1.28",
+-    "@nestjs/websockets": "^11.1.28",
+-    "bcryptjs": "^2.4.3",
+-    "class-transformer": "^0.5.1",
+-    "class-validator": "^0.14.1",
+-    "cloudinary": "^1.41.3",
+-    "dotenv": "^16.4.5",
+-    "graphql": "^16.8.1",
+-    "mongoose": "^8.2.1",
+-    "multer": "^2.2.0",
+-    "multer-storage-cloudinary": "^4.0.0",
+-    "passport": "^0.7.0",
+-    "passport-jwt": "^4.0.1",
+-    "reflect-metadata": "^0.2.0",
+-    "rxjs": "^7.8.1",
+-    "socket.io": "^4.7.5"
+-  },
+-  "devDependencies": {
+-    "@nestjs/cli": "^11.0.24",
+-    "@nestjs/schematics": "^11.1.0",
+-    "@nestjs/testing": "^11.1.28",
+-    "@types/express": "^5.0.0",
+-    "@types/jest": "^29.5.2",
+-    "@types/multer": "^2.0.0",
+-    "@types/node": "^20.3.1",
+-    "@types/passport-jwt": "^4.0.1",
+-    "@types/supertest": "^6.0.0",
+-    "@typescript-eslint/eslint-plugin": "^6.0.0",
+-    "@typescript-eslint/parser": "^6.0.0",
+-    "eslint": "^8.42.0",
+-    "eslint-config-prettier": "^9.0.0",
+-    "eslint-plugin-prettier": "^5.0.0",
+-    "jest": "^29.5.0",
+-    "prettier": "^3.0.0",
+-    "source-map-support": "^0.5.21",
+-    "supertest": "^6.3.3",
+-    "ts-jest": "^29.1.0",
+-    "ts-loader": "^9.4.3",
+-    "ts-node": "^10.9.1",
+-    "tsconfig-paths": "^4.2.0",
+-    "typescript": "^5.1.3"
+-  },
+-  "jest": {
+-    "moduleFileExtensions": [
+-      "js",
+-      "json",
+-      "ts"
+-    ],
+-    "rootDir": "src",
+-    "testRegex": ".*\\.spec\\.ts$",
+-    "transform": {
+-      "^.+\\.(t|j)s$": "ts-jest"
+-    },
+-    "collectCoverageFrom": [
+-      "**/*.(t|j)s"
+-    ],
+-    "coverageDirectory": "../coverage",
+-    "testEnvironment": "node"
+-  }
+-}
++{
++  "name": "colombia-tech-backend",
++  "version": "2.0.0",
++  "description": "Backend unificado (REST + GraphQL + WebSockets) para el proyecto ColombiaTech — reemplaza Nest/ y Tech/ por una sola base.",
++  "scripts": {
++    "build": "nest build",
++    "start": "nest start",
++    "start:dev": "nest start --watch",
++    "start:prod": "node dist/main",
++    "lint": "eslint \"{src,test}/**/*.ts\" --fix",
++    "test": "jest",
++    "test:e2e": "jest --config ./test/jest-e2e.json",
++    "crear:usuario-revision": "ts-node -r tsconfig-paths/register src/scripts/crear-usuario-revision.ts",
++    "crear:admin": "ts-node -r tsconfig-paths/register src/scripts/crear-admin.ts"
++  },
++  "dependencies": {
++    "@apollo/server": "^5.5.1",
++    "@as-integrations/express5": "^1.1.2",
++    "@nestjs/apollo": "^13.4.2",
++    "@nestjs/common": "^11.1.28",
++    "@nestjs/core": "^11.1.28",
++    "@nestjs/graphql": "^13.4.2",
++    "@nestjs/jwt": "^11.0.2",
++    "@nestjs/mongoose": "^11.0.4",
++    "@nestjs/passport": "^11.0.5",
++    "@nestjs/platform-express": "^11.1.28",
++    "@nestjs/platform-socket.io": "^11.1.28",
++    "@nestjs/websockets": "^11.1.28",
++    "bcryptjs": "^2.4.3",
++    "class-transformer": "^0.5.1",
++    "class-validator": "^0.14.1",
++    "cloudinary": "^1.41.3",
++    "dotenv": "^16.4.5",
++    "graphql": "^16.8.1",
++    "mongoose": "^8.2.1",
++    "multer": "^2.2.0",
++    "multer-storage-cloudinary": "^4.0.0",
++    "passport": "^0.7.0",
++    "passport-jwt": "^4.0.1",
++    "reflect-metadata": "^0.2.0",
++    "rxjs": "^7.8.1",
++    "socket.io": "^4.7.5"
++  },
++  "devDependencies": {
++    "@nestjs/cli": "^11.0.24",
++    "@nestjs/schematics": "^11.1.0",
++    "@nestjs/testing": "^11.1.28",
++    "@types/express": "^5.0.0",
++    "@types/jest": "^29.5.2",
++    "@types/multer": "^2.0.0",
++    "@types/node": "^20.3.1",
++    "@types/passport-jwt": "^4.0.1",
++    "@types/supertest": "^6.0.0",
++    "@typescript-eslint/eslint-plugin": "^6.0.0",
++    "@typescript-eslint/parser": "^6.0.0",
++    "eslint": "^8.42.0",
++    "eslint-config-prettier": "^9.0.0",
++    "eslint-plugin-prettier": "^5.0.0",
++    "jest": "^29.5.0",
++    "prettier": "^3.0.0",
++    "source-map-support": "^0.5.21",
++    "supertest": "^6.3.3",
++    "ts-jest": "^29.1.0",
++    "ts-loader": "^9.4.3",
++    "ts-node": "^10.9.1",
++    "tsconfig-paths": "^4.2.0",
++    "typescript": "^5.1.3"
++  },
++  "jest": {
++    "moduleFileExtensions": [
++      "js",
++      "json",
++      "ts"
++    ],
++    "rootDir": "src",
++    "testRegex": ".*\\.spec\\.ts$",
++    "transform": {
++      "^.+\\.(t|j)s$": "ts-jest"
++    },
++    "collectCoverageFrom": [
++      "**/*.(t|j)s"
++    ],
++    "coverageDirectory": "../coverage",
++    "testEnvironment": "node"
++  }
++}
+diff --git a/backend/src/auth/auth.service.ts b/backend/src/auth/auth.service.ts
+index 426da6d..7c52715 100644
+--- a/backend/src/auth/auth.service.ts
++++ b/backend/src/auth/auth.service.ts
+@@ -1,49 +1,59 @@
+-import { Injectable, UnauthorizedException } from '@nestjs/common';
+-import { JwtService } from '@nestjs/jwt';
+-import * as bcrypt from 'bcryptjs';
+-import { UsersService } from '../users/users.service';
+-
+-export interface AuthResult {
+-  token: string;
+-  user: {
+-    _id: string;
+-    name: string;
+-    lastname?: string;
+-    email: string;
+-    avatar?: string;
+-  };
+-}
+-
+-@Injectable()
+-export class AuthService {
+-  constructor(
+-    private readonly usersService: UsersService,
+-    private readonly jwtService: JwtService,
+-  ) {}
+-
+-  async login(email: string, password: string): Promise<AuthResult> {
+-    const user = await this.usersService.findByEmailWithPassword(email);
+-    if (!user) {
+-      throw new UnauthorizedException('Credenciales inválidas');
+-    }
+-
+-    const passwordMatches = await bcrypt.compare(password, user.password);
+-    if (!passwordMatches) {
+-      throw new UnauthorizedException('Credenciales inválidas');
+-    }
+-
+-    const payload = { sub: user._id.toString(), email: user.email };
+-    const token = await this.jwtService.signAsync(payload);
+-
+-    return {
+-      token,
+-      user: {
+-        _id: user._id.toString(),
+-        name: user.name,
+-        lastname: user.lastname,
+-        email: user.email,
+-        avatar: user.avatar,
+-      },
+-    };
+-  }
++import { Injectable, UnauthorizedException } from '@nestjs/common';
++import { JwtService } from '@nestjs/jwt';
++import * as bcrypt from 'bcryptjs';
++import { UsersService } from '../users/users.service';
++
++export interface AuthResult {
++  token: string;
++  user: {
++    _id: string;
++    name: string;
++    lastname?: string;
++    email: string;
++    avatar?: string;
++    role: string;
++  };
++}
++
++@Injectable()
++export class AuthService {
++  constructor(
++    private readonly usersService: UsersService,
++    private readonly jwtService: JwtService,
++  ) {}
++
++  async login(email: string, password: string): Promise<AuthResult> {
++    const user = await this.usersService.findByEmailWithPassword(email);
++    if (!user) {
++      throw new UnauthorizedException('Credenciales inválidas');
++    }
++
++    const passwordMatches = await bcrypt.compare(password, user.password);
++    if (!passwordMatches) {
++      throw new UnauthorizedException('Credenciales inválidas');
++    }
++
++    if (user.active === false) {
++      throw new UnauthorizedException('Esta cuenta fue suspendida');
++    }
++
++    const payload = {
++      sub: user._id.toString(),
++      email: user.email,
++      role: user.role,
++    };
++    const token = await this.jwtService.signAsync(payload);
++
++    return {
++      token,
++      user: {
++        _id: user._id.toString(),
++        name: user.name,
++        lastname: user.lastname,
++        email: user.email,
++        avatar: user.avatar,
++        role: user.role,
++      },
++    };
++  }
+ }
+\ No newline at end of file
+diff --git a/backend/src/auth/jwt.strategy.ts b/backend/src/auth/jwt.strategy.ts
+index 9095af6..793c64b 100644
+--- a/backend/src/auth/jwt.strategy.ts
++++ b/backend/src/auth/jwt.strategy.ts
+@@ -1,25 +1,42 @@
+-import { Injectable } from '@nestjs/common';
+-import { PassportStrategy } from '@nestjs/passport';
+-import { ExtractJwt, Strategy } from 'passport-jwt';
+-
+-export interface JwtPayload {
+-  sub: string;
+-  email: string;
+-}
+-
+-@Injectable()
+-export class JwtStrategy extends PassportStrategy(Strategy) {
+-  constructor() {
+-    super({
+-      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+-      ignoreExpiration: false,
+-      secretOrKey: process.env.JWT_SECRET as string,
+-    });
+-  }
+-
+-  // Lo que retorna aquí queda disponible como `request.user` en cualquier
+-  // controlador protegido con JwtAuthGuard.
+-  async validate(payload: JwtPayload) {
+-    return { userId: payload.sub, email: payload.email };
+-  }
+-}
++import { Injectable, UnauthorizedException } from '@nestjs/common';
++import { PassportStrategy } from '@nestjs/passport';
++import { ExtractJwt, Strategy } from 'passport-jwt';
++import { UsersService } from '../users/users.service';
++
++export interface JwtPayload {
++  sub: string;
++  email: string;
++  role?: string;
++}
++
++@Injectable()
++export class JwtStrategy extends PassportStrategy(Strategy) {
++  constructor(private readonly usersService: UsersService) {
++    super({
++      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
++      ignoreExpiration: false,
++      secretOrKey: process.env.JWT_SECRET as string,
++    });
++  }
++
++  // Lo que retorna aquí queda disponible como `request.user` en cualquier
++  // controlador protegido con JwtAuthGuard. Se relee el usuario de la base
++  // en cada request (en vez de confiar ciegamente en el `role` del token)
++  // para que suspender una cuenta o cambiarle el rol tenga efecto
++  // inmediato, sin esperar a que expire el token viejo.
++  async validate(payload: JwtPayload) {
++    let user: any;
++    try {
++      user = await this.usersService.findOne(payload.sub);
++    } catch {
++      // findOne lanza NotFoundException (o CastError si el id ya no es
++      // válido) -- en ambos casos, para un guard de auth lo correcto es
++      // un 401 uniforme, no dejar que se filtre un 404/500.
++      throw new UnauthorizedException('Sesión inválida');
++    }
++    if (user.active === false) {
++      throw new UnauthorizedException('Esta cuenta fue suspendida');
++    }
++    return { userId: payload.sub, email: payload.email, role: user.role };
++  }
++}
+diff --git a/backend/src/auth/roles.decorator.ts b/backend/src/auth/roles.decorator.ts
+new file mode 100644
+index 0000000..d6cc8e7
+--- /dev/null
++++ b/backend/src/auth/roles.decorator.ts
+@@ -0,0 +1,14 @@
++import { SetMetadata } from '@nestjs/common';
++
++export const ROLES_KEY = 'roles';
++
++/**
++ * Marca un endpoint (REST) o resolver (GraphQL) como restringido a ciertos
++ * roles. Se usa junto a JwtAuthGuard + RolesGuard:
++ *
++ *   @UseGuards(JwtAuthGuard, RolesGuard)
++ *   @Roles('admin')
++ *   @Get()
++ *   findAll() { ... }
++ */
++export const Roles = (...roles: string[]) => SetMetadata(ROLES_KEY, roles);
+diff --git a/backend/src/auth/roles.guard.ts b/backend/src/auth/roles.guard.ts
+new file mode 100644
+index 0000000..a6f0e53
+--- /dev/null
++++ b/backend/src/auth/roles.guard.ts
+@@ -0,0 +1,35 @@
++import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
++import { Reflector } from '@nestjs/core';
++import { GqlExecutionContext } from '@nestjs/graphql';
++import { ROLES_KEY } from './roles.decorator';
++
++/**
++ * Va siempre después de JwtAuthGuard (@UseGuards(JwtAuthGuard, RolesGuard)):
++ * asume que request.user ya existe. Funciona tanto para REST como para los
++ * resolvers de GraphQL (ambos comparten JwtStrategy/JwtAuthGuard).
++ */
++@Injectable()
++export class RolesGuard implements CanActivate {
++  constructor(private readonly reflector: Reflector) {}
++
++  canActivate(context: ExecutionContext): boolean {
++    const requiredRoles = this.reflector.getAllAndOverride<string[]>(
++      ROLES_KEY,
++      [context.getHandler(), context.getClass()],
++    );
++    if (!requiredRoles || requiredRoles.length === 0) {
++      return true;
++    }
++
++    const user = this.getUser(context);
++    return !!user && requiredRoles.includes(user.role);
++  }
++
++  private getUser(context: ExecutionContext): any {
++    if (context.getType() === 'http') {
++      return context.switchToHttp().getRequest().user;
++    }
++    const gqlContext = GqlExecutionContext.create(context).getContext();
++    return gqlContext?.req?.user;
++  }
++}
+diff --git a/backend/src/houses/house.entity.ts b/backend/src/houses/house.entity.ts
+index 4d9bd66..1ec4187 100644
+--- a/backend/src/houses/house.entity.ts
++++ b/backend/src/houses/house.entity.ts
+@@ -1,43 +1,46 @@
+-import { ObjectType, Field, ID, Int, Float } from '@nestjs/graphql';
+-
+-@ObjectType()
+-export class House {
+-  @Field(() => ID)
+-  id: string;
+-
+-  @Field()
+-  address: string;
+-
+-  @Field()
+-  city: string;
+-
+-  @Field()
+-  state: string;
+-
+-  @Field(() => Float)
+-  size: number;
+-
+-  @Field()
+-  type: string;
+-
+-  @Field()
+-  zip_code: string;
+-
+-  @Field(() => Int)
+-  rooms: number;
+-
+-  @Field(() => Int)
+-  bathrooms: number;
+-
+-  @Field()
+-  parking: string;
+-
+-  @Field(() => Float)
+-  price: number;
+-
+-  @Field()
+-  code: string;
+-
+-  @Field({ nullable: true })
+-  image?: string;
+-}
++import { ObjectType, Field, ID, Int, Float } from '@nestjs/graphql';
++
++@ObjectType()
++export class House {
++  @Field(() => ID)
++  id: string;
++
++  @Field()
++  address: string;
++
++  @Field()
++  city: string;
++
++  @Field()
++  state: string;
++
++  @Field(() => Float)
++  size: number;
++
++  @Field()
++  type: string;
++
++  @Field()
++  zip_code: string;
++
++  @Field(() => Int)
++  rooms: number;
++
++  @Field(() => Int)
++  bathrooms: number;
++
++  @Field()
++  parking: string;
++
++  @Field(() => Float)
++  price: number;
++
++  @Field()
++  code: string;
++
++  @Field({ nullable: true })
++  image?: string;
++
++  @Field({ nullable: true })
++  ownerId?: string;
++}
+diff --git a/backend/src/houses/house.schema.ts b/backend/src/houses/house.schema.ts
+index 48c91e6..4c2aa04 100644
+--- a/backend/src/houses/house.schema.ts
++++ b/backend/src/houses/house.schema.ts
+@@ -1,16 +1,22 @@
+-import * as mongoose from 'mongoose';
+-
+-export const HouseSchema = new mongoose.Schema({
+-  address: { type: String, required: true },
+-  city: { type: String, required: true },
+-  state: { type: String, required: true },
+-  size: { type: Number, required: true },
+-  type: { type: String, required: true },
+-  zip_code: { type: String, required: true },
+-  rooms: { type: Number, required: true },
+-  bathrooms: { type: Number, required: true },
+-  parking: { type: String, required: true },
+-  price: { type: Number, required: true },
+-  code: { type: String, required: true, unique: true },
+-  image: { type: String },
+-});
++import * as mongoose from 'mongoose';
++
++export const HouseSchema = new mongoose.Schema({
++  address: { type: String, required: true },
++  city: { type: String, required: true },
++  state: { type: String, required: true },
++  size: { type: Number, required: true },
++  type: { type: String, required: true },
++  zip_code: { type: String, required: true },
++  rooms: { type: Number, required: true },
++  bathrooms: { type: Number, required: true },
++  parking: { type: String, required: true },
++  price: { type: Number, required: true },
++  code: { type: String, required: true, unique: true },
++  image: { type: String },
++  // Dueño de la publicación (id de User). Antes no existía ningún concepto
++  // de ownership acá -- cualquier usuario logueado podía editar/borrar la
++  // casa de cualquier otro. Ahora solo el dueño o un admin pueden hacerlo
++  // (ver houses.service.ts). Opcional porque las casas creadas antes de
++  // este cambio no tienen dueño asignado.
++  ownerId: { type: String },
++});
+diff --git a/backend/src/houses/houses.controller.ts b/backend/src/houses/houses.controller.ts
+index f930500..1f79cb9 100644
+--- a/backend/src/houses/houses.controller.ts
++++ b/backend/src/houses/houses.controller.ts
+@@ -1,59 +1,70 @@
+-import {
+-  Body,
+-  Controller,
+-  Delete,
+-  Get,
+-  HttpCode,
+-  Param,
+-  Post,
+-  Put,
+-  UseGuards,
+-} from '@nestjs/common';
+-import { House } from './house.entity';
+-import { CreateHouseDto } from './dto/create-house.dto';
+-import { UpdateHouseDto } from './dto/update-house.dto';
+-import { HousesService } from './houses.service';
+-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+-
+-// Decisión de diseño: navegar el catálogo de casas (GET) es público —
+-// cualquier visitante puede ver los anuncios, como en un sitio real de
+-// alquiler. Crear, editar o borrar sí requiere estar autenticado.
+-//
+-// Nota: :code identifica la casa por su código legible (ej. "H-1024"),
+-// no por el _id de Mongo — así es como ya lo espera el frontend.
+-@Controller('house')
+-export class HousesController {
+-  constructor(private readonly housesService: HousesService) {}
+-
+-  @UseGuards(JwtAuthGuard)
+-  @Post()
+-  @HttpCode(201)
+-  async create(@Body() createHouseDto: CreateHouseDto): Promise<House> {
+-    return this.housesService.create(createHouseDto);
+-  }
+-
+-  @Get()
+-  async findAll(): Promise<House[]> {
+-    return this.housesService.findAll();
+-  }
+-
+-  @Get(':code')
+-  async findOne(@Param('code') code: string): Promise<House> {
+-    return this.housesService.findOne(code);
+-  }
+-
+-  @UseGuards(JwtAuthGuard)
+-  @Put(':code')
+-  async update(
+-    @Param('code') code: string,
+-    @Body() updateHouseDto: UpdateHouseDto,
+-  ): Promise<House> {
+-    return this.housesService.update(code, updateHouseDto);
+-  }
+-
+-  @UseGuards(JwtAuthGuard)
+-  @Delete(':code')
+-  async delete(@Param('code') code: string): Promise<boolean> {
+-    return this.housesService.delete(code);
+-  }
+-}
++import {
++  Body,
++  Controller,
++  Delete,
++  Get,
++  HttpCode,
++  Param,
++  Post,
++  Put,
++  Req,
++  UseGuards,
++} from '@nestjs/common';
++import { House } from './house.entity';
++import { CreateHouseDto } from './dto/create-house.dto';
++import { UpdateHouseDto } from './dto/update-house.dto';
++import { HousesService } from './houses.service';
++import { JwtAuthGuard } from '../auth/jwt-auth.guard';
++
++// Decisión de diseño: navegar el catálogo de casas (GET) es público —
++// cualquier visitante puede ver los anuncios, como en un sitio real de
++// alquiler. Crear, editar o borrar sí requiere estar autenticado.
++//
++// Nota: :code identifica la casa por su código legible (ej. "H-1024"),
++// no por el _id de Mongo — así es como ya lo espera el frontend.
++@Controller('house')
++export class HousesController {
++  constructor(private readonly housesService: HousesService) {}
++
++  @UseGuards(JwtAuthGuard)
++  @Post()
++  @HttpCode(201)
++  async create(
++    @Body() createHouseDto: CreateHouseDto,
++    @Req() req,
++  ): Promise<House> {
++    return this.housesService.create(createHouseDto, req.user.userId);
++  }
++
++  @Get()
++  async findAll(): Promise<House[]> {
++    return this.housesService.findAll();
++  }
++
++  @Get(':code')
++  async findOne(@Param('code') code: string): Promise<House> {
++    return this.housesService.findOne(code);
++  }
++
++  @UseGuards(JwtAuthGuard)
++  @Put(':code')
++  async update(
++    @Param('code') code: string,
++    @Body() updateHouseDto: UpdateHouseDto,
++    @Req() req,
++  ): Promise<House> {
++    return this.housesService.update(code, updateHouseDto, {
++      userId: req.user.userId,
++      isAdmin: req.user.role === 'admin',
++    });
++  }
++
++  @UseGuards(JwtAuthGuard)
++  @Delete(':code')
++  async delete(@Param('code') code: string, @Req() req): Promise<boolean> {
++    return this.housesService.delete(code, {
++      userId: req.user.userId,
++      isAdmin: req.user.role === 'admin',
++    });
++  }
++}
+diff --git a/backend/src/houses/houses.resolver.ts b/backend/src/houses/houses.resolver.ts
+index b96ae5f..1db72ba 100644
+--- a/backend/src/houses/houses.resolver.ts
++++ b/backend/src/houses/houses.resolver.ts
+@@ -1,45 +1,52 @@
+-import { Resolver, Query, Mutation, Args } from '@nestjs/graphql';
+-import { UseGuards } from '@nestjs/common';
+-import { HousesService } from './houses.service';
+-import { House } from './house.entity';
+-import { CreateHouseDto } from './dto/create-house.dto';
+-import { UpdateHouseDto } from './dto/update-house.dto';
+-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+-
+-@Resolver(() => House)
+-export class HousesResolver {
+-  constructor(private readonly housesService: HousesService) {}
+-
+-  @Query(() => [House])
+-  houses() {
+-    return this.housesService.findAll();
+-  }
+-
+-  // Nota: code es el código legible de la casa (ej. "H-1024"), no un
+-  // ObjectId de Mongo — por eso es un String, no un ID de GraphQL.
+-  @Query(() => House)
+-  house(@Args('code') code: string) {
+-    return this.housesService.findOne(code);
+-  }
+-
+-  @UseGuards(JwtAuthGuard)
+-  @Mutation(() => House)
+-  createHouse(@Args('input') input: CreateHouseDto) {
+-    return this.housesService.create(input);
+-  }
+-
+-  @UseGuards(JwtAuthGuard)
+-  @Mutation(() => House)
+-  updateHouse(
+-    @Args('code') code: string,
+-    @Args('input') input: UpdateHouseDto,
+-  ) {
+-    return this.housesService.update(code, input);
+-  }
+-
+-  @UseGuards(JwtAuthGuard)
+-  @Mutation(() => Boolean)
+-  deleteHouse(@Args('code') code: string) {
+-    return this.housesService.delete(code);
+-  }
+-}
++import { Resolver, Query, Mutation, Args, Context } from '@nestjs/graphql';
++import { UseGuards } from '@nestjs/common';
++import { HousesService } from './houses.service';
++import { House } from './house.entity';
++import { CreateHouseDto } from './dto/create-house.dto';
++import { UpdateHouseDto } from './dto/update-house.dto';
++import { JwtAuthGuard } from '../auth/jwt-auth.guard';
++
++@Resolver(() => House)
++export class HousesResolver {
++  constructor(private readonly housesService: HousesService) {}
++
++  @Query(() => [House])
++  houses() {
++    return this.housesService.findAll();
++  }
++
++  // Nota: code es el código legible de la casa (ej. "H-1024"), no un
++  // ObjectId de Mongo — por eso es un String, no un ID de GraphQL.
++  @Query(() => House)
++  house(@Args('code') code: string) {
++    return this.housesService.findOne(code);
++  }
++
++  @UseGuards(JwtAuthGuard)
++  @Mutation(() => House)
++  createHouse(@Args('input') input: CreateHouseDto, @Context() context) {
++    return this.housesService.create(input, context.req.user.userId);
++  }
++
++  @UseGuards(JwtAuthGuard)
++  @Mutation(() => House)
++  updateHouse(
++    @Args('code') code: string,
++    @Args('input') input: UpdateHouseDto,
++    @Context() context,
++  ) {
++    return this.housesService.update(code, input, {
++      userId: context.req.user.userId,
++      isAdmin: context.req.user.role === 'admin',
++    });
++  }
++
++  @UseGuards(JwtAuthGuard)
++  @Mutation(() => Boolean)
++  deleteHouse(@Args('code') code: string, @Context() context) {
++    return this.housesService.delete(code, {
++      userId: context.req.user.userId,
++      isAdmin: context.req.user.role === 'admin',
++    });
++  }
++}
+diff --git a/backend/src/houses/houses.service.ts b/backend/src/houses/houses.service.ts
+index c94486e..63db279 100644
+--- a/backend/src/houses/houses.service.ts
++++ b/backend/src/houses/houses.service.ts
+@@ -1,57 +1,90 @@
+-import { Injectable, NotFoundException } from '@nestjs/common';
+-import { InjectModel } from '@nestjs/mongoose';
+-import { Model } from 'mongoose';
+-import { House } from './house.entity';
+-import { CreateHouseDto } from './dto/create-house.dto';
+-import { UpdateHouseDto } from './dto/update-house.dto';
+-
+-@Injectable()
+-export class HousesService {
+-  constructor(
+-    @InjectModel('House') private readonly houseModel: Model<House>,
+-  ) {}
+-
+-  async create(createHouseDto: CreateHouseDto): Promise<House> {
+-    const newHouse = new this.houseModel(createHouseDto);
+-    return newHouse.save();
+-  }
+-
+-  async findAll(): Promise<House[]> {
+-    return this.houseModel.find();
+-  }
+-
+-  // CORRECCIÓN: el frontend original identifica las casas por su `code`
+-  // legible (ej. "H-1024"), no por el _id interno de Mongo — así llama a
+-  // getHouseByCode/updateHouse/deleteHouse. Usar findById aquí habría
+-  // fallado siempre (CastError) porque "code" no es un ObjectId válido.
+-  async findOne(code: string): Promise<House> {
+-    const house = await this.houseModel.findOne({ code });
+-    if (!house) {
+-      throw new NotFoundException('Casa no encontrada');
+-    }
+-    return house;
+-  }
+-
+-  // CORRECCIÓN: en el original este método tenía un `catch` sin `try` y el
+-  // método `delete` completo estaba anidado (mal indentado) dentro de este
+-  // — es decir, el archivo original no compilaba tal cual estaba.
+-  async update(code: string, updateHouseDto: UpdateHouseDto): Promise<House> {
+-    const updated = await this.houseModel.findOneAndUpdate(
+-      { code },
+-      updateHouseDto,
+-      { new: true },
+-    );
+-    if (!updated) {
+-      throw new NotFoundException('Casa no encontrada');
+-    }
+-    return updated;
+-  }
+-
+-  async delete(code: string): Promise<boolean> {
+-    const deleted = await this.houseModel.findOneAndDelete({ code });
+-    if (!deleted) {
+-      throw new NotFoundException('Casa no encontrada');
+-    }
+-    return true;
+-  }
+-}
++import {
++  ForbiddenException,
++  Injectable,
++  NotFoundException,
++} from '@nestjs/common';
++import { InjectModel } from '@nestjs/mongoose';
++import { Model } from 'mongoose';
++import { House } from './house.entity';
++import { CreateHouseDto } from './dto/create-house.dto';
++import { UpdateHouseDto } from './dto/update-house.dto';
++
++// Quién está pidiendo la operación, para chequear ownership. Un admin
++// (isAdmin: true) puede editar/borrar la casa de cualquiera.
++export interface ActorUsuario {
++  userId: string;
++  isAdmin: boolean;
++}
++
++@Injectable()
++export class HousesService {
++  constructor(
++    @InjectModel('House') private readonly houseModel: Model<House>,
++  ) {}
++
++  async create(
++    createHouseDto: CreateHouseDto,
++    ownerId: string,
++  ): Promise<House> {
++    const newHouse = new this.houseModel({ ...createHouseDto, ownerId });
++    return newHouse.save();
++  }
++
++  async findAll(): Promise<House[]> {
++    return this.houseModel.find();
++  }
++
++  // CORRECCIÓN: el frontend original identifica las casas por su `code`
++  // legible (ej. "H-1024"), no por el _id interno de Mongo — así llama a
++  // getHouseByCode/updateHouse/deleteHouse. Usar findById aquí habría
++  // fallado siempre (CastError) porque "code" no es un ObjectId válido.
++  async findOne(code: string): Promise<House> {
++    const house = await this.houseModel.findOne({ code });
++    if (!house) {
++      throw new NotFoundException('Casa no encontrada');
++    }
++    return house;
++  }
++
++  // CORRECCIÓN: en el original este método tenía un `catch` sin `try` y el
++  // método `delete` completo estaba anidado (mal indentado) dentro de este
++  // — es decir, el archivo original no compilaba tal cual estaba.
++  async update(
++    code: string,
++    updateHouseDto: UpdateHouseDto,
++    actor: ActorUsuario,
++  ): Promise<House> {
++    const house = await this.findOne(code);
++    this.assertOwnerOrAdmin(house, actor);
++    const updated = await this.houseModel.findOneAndUpdate(
++      { code },
++      updateHouseDto,
++      { new: true },
++    );
++    if (!updated) {
++      throw new NotFoundException('Casa no encontrada');
++    }
++    return updated;
++  }
++
++  async delete(code: string, actor: ActorUsuario): Promise<boolean> {
++    const house = await this.findOne(code);
++    this.assertOwnerOrAdmin(house, actor);
++    const deleted = await this.houseModel.findOneAndDelete({ code });
++    if (!deleted) {
++      throw new NotFoundException('Casa no encontrada');
++    }
++    return true;
++  }
++
++  // Las casas creadas antes de agregar ownerId no tienen dueño asignado --
++  // para no romper datos viejos, en ese caso cualquier usuario autenticado
++  // puede seguir editándolas/borrándolas (comportamiento previo). Las casas
++  // nuevas sí exigen ser el dueño, salvo que el actor sea admin.
++  private assertOwnerOrAdmin(house: House, actor: ActorUsuario): void {
++    const ownerId = (house as any).ownerId;
++    if (!ownerId) return;
++    if (actor.isAdmin || ownerId === actor.userId) return;
++    throw new ForbiddenException('Solo el dueño de la casa o un admin puede modificarla');
++  }
++}
+diff --git a/backend/src/scripts/crear-admin.ts b/backend/src/scripts/crear-admin.ts
+new file mode 100644
+index 0000000..5efdbf8
+--- /dev/null
++++ b/backend/src/scripts/crear-admin.ts
+@@ -0,0 +1,94 @@
++/**
++ * Crea o asciende a admin las cuentas indicadas. Conecta directo a Mongo
++ * con DB_URL (mismo .env que usa el backend) -- no pasa por la API HTTP,
++ * así que la contraseña nunca queda en ningún log de requests.
++ *
++ * Uso:
++ *   npm run crear:admin -- correo1@ejemplo.com,correo2@ejemplo.com "Nombre" LaContraseña
++ *
++ * o con variables de entorno (útil para no dejar la contraseña en el
++ * historial de la shell):
++ *   ADMIN_EMAILS=correo1@ejemplo.com,correo2@ejemplo.com \
++ *   ADMIN_NOMBRE="Nombre" \
++ *   ADMIN_PASSWORD=LaContraseña \
++ *   npm run crear:admin
++ *
++ * Si la cuenta ya existe, la asciende a role: 'admin' sin tocar su
++ * contraseña actual (a menos que también se pase ADMIN_PASSWORD, en cuyo
++ * caso también se la actualiza). Si no existe, la crea directamente con
++ * role: 'admin' -- nunca pasa por el registro público, que no acepta ese
++ * campo (ver CreateUserDto).
++ */
++import * as mongoose from 'mongoose';
++import * as bcrypt from 'bcryptjs';
++import * as dotenv from 'dotenv';
++import { UserSchema } from '../users/user.schema';
++
++dotenv.config();
++
++async function main() {
++  const dbUrl = process.env.DB_URL;
++  if (!dbUrl) {
++    throw new Error('Falta DB_URL en el .env');
++  }
++
++  const argEmails = process.argv[2];
++  const argNombre = process.argv[3];
++  const argPassword = process.argv[4];
++
++  const emailsRaw = argEmails || process.env.ADMIN_EMAILS;
++  const nombre = argNombre || process.env.ADMIN_NOMBRE || 'Administrador';
++  const password = argPassword || process.env.ADMIN_PASSWORD;
++
++  if (!emailsRaw) {
++    throw new Error(
++      'Falta la lista de correos (argumento 1, o ADMIN_EMAILS separados por coma)',
++    );
++  }
++  const emails = emailsRaw
++    .split(',')
++    .map((e) => e.trim().toLowerCase())
++    .filter(Boolean);
++  if (emails.length === 0) {
++    throw new Error('La lista de correos quedó vacía');
++  }
++
++  await mongoose.connect(dbUrl);
++  const UserModel = mongoose.model('User', UserSchema);
++
++  const hashedPassword = password ? await bcrypt.hash(password, 10) : undefined;
++
++  for (const email of emails) {
++    const existente = await UserModel.findOne({ email });
++    if (existente) {
++      const cambios: any = { role: 'admin', active: true };
++      if (hashedPassword) cambios.password = hashedPassword;
++      await UserModel.updateOne({ email }, { $set: cambios });
++      console.log(
++        `✅ ${email}: ascendido a admin${hashedPassword ? ' (contraseña actualizada)' : ''}`,
++      );
++    } else {
++      if (!hashedPassword) {
++        console.log(
++          `⚠️  ${email}: no existe y no se pasó ADMIN_PASSWORD -- no se puede crear sin contraseña, se omite`,
++        );
++        continue;
++      }
++      await UserModel.create({
++        name: nombre,
++        email,
++        password: hashedPassword,
++        role: 'admin',
++        active: true,
++      });
++      console.log(`✅ ${email}: cuenta admin creada`);
++    }
++  }
++
++  await mongoose.disconnect();
++}
++
++main().catch((error) => {
++  console.error('❌', error.message);
++  process.exit(1);
++});
+diff --git a/backend/src/upload/upload.controller.ts b/backend/src/upload/upload.controller.ts
+index b3eb7fd..cd8ea90 100644
+--- a/backend/src/upload/upload.controller.ts
++++ b/backend/src/upload/upload.controller.ts
+@@ -1,82 +1,95 @@
+-import {
+-  Controller,
+-  Post,
+-  Param,
+-  UseInterceptors,
+-  UploadedFile,
+-  UseGuards,
+-  BadRequestException,
+-} from '@nestjs/common';
+-import { FileInterceptor } from '@nestjs/platform-express';
+-import { v2 as cloudinary } from 'cloudinary';
+-import { CloudinaryStorage } from 'multer-storage-cloudinary';
+-import { UsersService } from '../users/users.service';
+-import { HousesService } from '../houses/houses.service';
+-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+-
+-cloudinary.config({
+-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+-  api_key: process.env.CLOUDINARY_API_KEY,
+-  api_secret: process.env.CLOUDINARY_API_SECRET,
+-});
+-
+-const imageStorage = new CloudinaryStorage({
+-  cloudinary,
+-  params: async () => ({
+-    folder: 'colombiatech2',
+-    allowed_formats: ['jpg', 'jpeg', 'png', 'gif', 'webp'],
+-  }),
+-});
+-
+-const imageFileFilter = (req, file, callback) => {
+-  if (!file.mimetype.match(/^image\/(jpg|jpeg|png|gif|webp)$/)) {
+-    return callback(new BadRequestException('Solo se permiten imágenes'), false);
+-  }
+-  callback(null, true);
+-};
+-
+-@Controller('upload')
+-@UseGuards(JwtAuthGuard)
+-export class UploadController {
+-  constructor(
+-    private readonly usersService: UsersService,
+-    private readonly housesService: HousesService,
+-  ) {}
+-
+-  @Post(':id/user')
+-  @UseInterceptors(
+-    FileInterceptor('file', {
+-      storage: imageStorage,
+-      limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+-      fileFilter: imageFileFilter,
+-    }),
+-  )
+-  async uploadUserAvatar(
+-    @Param('id') id: string,
+-    @UploadedFile() file: Express.Multer.File,
+-  ) {
+-    if (!file) {
+-      throw new BadRequestException('No se recibió ningún archivo');
+-    }
+-    // Con Cloudinary, file.path ya es la URL pública completa
+-    return this.usersService.update(id, { avatar: file.path } as any);
+-  }
+-
+-  @Post(':code/house')
+-  @UseInterceptors(
+-    FileInterceptor('file', {
+-      storage: imageStorage,
+-      limits: { fileSize: 5 * 1024 * 1024 },
+-      fileFilter: imageFileFilter,
+-    }),
+-  )
+-  async uploadHouseImage(
+-    @Param('code') code: string,
+-    @UploadedFile() file: Express.Multer.File,
+-  ) {
+-    if (!file) {
+-      throw new BadRequestException('No se recibió ningún archivo');
+-    }
+-    return this.housesService.update(code, { image: file.path } as any);
+-  }
++import {
++  Controller,
++  Post,
++  Param,
++  Req,
++  UseInterceptors,
++  UploadedFile,
++  UseGuards,
++  BadRequestException,
++  ForbiddenException,
++} from '@nestjs/common';
++import { FileInterceptor } from '@nestjs/platform-express';
++import { v2 as cloudinary } from 'cloudinary';
++import { CloudinaryStorage } from 'multer-storage-cloudinary';
++import { UsersService } from '../users/users.service';
++import { HousesService } from '../houses/houses.service';
++import { JwtAuthGuard } from '../auth/jwt-auth.guard';
++
++cloudinary.config({
++  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
++  api_key: process.env.CLOUDINARY_API_KEY,
++  api_secret: process.env.CLOUDINARY_API_SECRET,
++});
++
++const imageStorage = new CloudinaryStorage({
++  cloudinary,
++  params: async () => ({
++    folder: 'colombiatech2',
++    allowed_formats: ['jpg', 'jpeg', 'png', 'gif', 'webp'],
++  }),
++});
++
++const imageFileFilter = (req, file, callback) => {
++  if (!file.mimetype.match(/^image\/(jpg|jpeg|png|gif|webp)$/)) {
++    return callback(new BadRequestException('Solo se permiten imágenes'), false);
++  }
++  callback(null, true);
++};
++
++@Controller('upload')
++@UseGuards(JwtAuthGuard)
++export class UploadController {
++  constructor(
++    private readonly usersService: UsersService,
++    private readonly housesService: HousesService,
++  ) {}
++
++  @Post(':id/user')
++  @UseInterceptors(
++    FileInterceptor('file', {
++      storage: imageStorage,
++      limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
++      fileFilter: imageFileFilter,
++    }),
++  )
++  async uploadUserAvatar(
++    @Param('id') id: string,
++    @UploadedFile() file: Express.Multer.File,
++    @Req() req,
++  ) {
++    if (!file) {
++      throw new BadRequestException('No se recibió ningún archivo');
++    }
++    // CORRECCIÓN: antes este endpoint no chequeaba que id fuera el propio
++    // usuario -- cualquiera autenticado podía cambiarle el avatar a
++    // cualquier otro. Mismo criterio que UsersController.
++    if (req.user?.userId !== id && req.user?.role !== 'admin') {
++      throw new ForbiddenException('Solo puedes cambiar tu propio avatar');
++    }
++    // Con Cloudinary, file.path ya es la URL pública completa
++    return this.usersService.update(id, { avatar: file.path } as any);
++  }
++
++  @Post(':code/house')
++  @UseInterceptors(
++    FileInterceptor('file', {
++      storage: imageStorage,
++      limits: { fileSize: 5 * 1024 * 1024 },
++      fileFilter: imageFileFilter,
++    }),
++  )
++  async uploadHouseImage(
++    @Param('code') code: string,
++    @UploadedFile() file: Express.Multer.File,
++    @Req() req,
++  ) {
++    if (!file) {
++      throw new BadRequestException('No se recibió ningún archivo');
++    }
++    return this.housesService.update(code, { image: file.path } as any, {
++      userId: req.user.userId,
++      isAdmin: req.user.role === 'admin',
++    });
++  }
+ }
+\ No newline at end of file
+diff --git a/backend/src/users/user.entity.ts b/backend/src/users/user.entity.ts
+index 59667e6..dd32a93 100644
+--- a/backend/src/users/user.entity.ts
++++ b/backend/src/users/user.entity.ts
+@@ -1,23 +1,29 @@
+-import { ObjectType, Field, ID } from '@nestjs/graphql';
+-
+-@ObjectType()
+-export class User {
+-  @Field(() => ID)
+-  id: string;
+-
+-  @Field()
+-  name: string;
+-
+-  @Field({ nullable: true })
+-  lastname?: string;
+-
+-  @Field()
+-  email: string;
+-
+-  @Field({ nullable: true })
+-  avatar?: string;
+-
+-  // Intencionalmente NO tiene @Field(): el password nunca debe poder
+-  // pedirse desde una query de GraphQL, igual que se excluye en REST.
+-  password?: string;
+-}
++import { ObjectType, Field, ID } from '@nestjs/graphql';
++
++@ObjectType()
++export class User {
++  @Field(() => ID)
++  id: string;
++
++  @Field()
++  name: string;
++
++  @Field({ nullable: true })
++  lastname?: string;
++
++  @Field()
++  email: string;
++
++  @Field({ nullable: true })
++  avatar?: string;
++
++  @Field()
++  role: string;
++
++  @Field()
++  active: boolean;
++
++  // Intencionalmente NO tiene @Field(): el password nunca debe poder
++  // pedirse desde una query de GraphQL, igual que se excluye en REST.
++  password?: string;
++}
+diff --git a/backend/src/users/user.schema.ts b/backend/src/users/user.schema.ts
+index 02d2193..6ad6cb7 100644
+--- a/backend/src/users/user.schema.ts
++++ b/backend/src/users/user.schema.ts
+@@ -1,9 +1,15 @@
+-import * as mongoose from 'mongoose';
+-
+-export const UserSchema = new mongoose.Schema({
+-  name: { type: String, required: true },
+-  lastname: { type: String },
+-  email: { type: String, required: true, unique: true },
+-  password: { type: String, required: true, select: false },
+-  avatar: { type: String },
+-});
++import * as mongoose from 'mongoose';
++
++export const UserSchema = new mongoose.Schema({
++  name: { type: String, required: true },
++  lastname: { type: String },
++  email: { type: String, required: true, unique: true },
++  password: { type: String, required: true, select: false },
++  avatar: { type: String },
++  // 'admin' solo se asigna vía el script de seed (src/scripts/crear-admin.ts)
++  // -- nunca desde el registro público ni desde UpdateUserDto (ver ese DTO).
++  role: { type: String, enum: ['user', 'admin'], default: 'user' },
++  // Cuenta suspendida por un admin: no puede volver a loguearse (ver
++  // jwt.strategy.ts) hasta que un admin la reactive.
++  active: { type: Boolean, default: true },
++});
+diff --git a/backend/src/users/users.controller.ts b/backend/src/users/users.controller.ts
+index 70f10ae..1f90c56 100644
+--- a/backend/src/users/users.controller.ts
++++ b/backend/src/users/users.controller.ts
+@@ -6,6 +6,7 @@ import {
+   Get,
+   HttpCode,
+   Param,
++  Patch,
+   Post,
+   Put,
+   Req,
+@@ -16,11 +17,12 @@ import { User } from './user.entity';
+ import { CreateUserDto } from './dto/create-user.dto';
+ import { UpdateUserDto } from './dto/update-user.dto';
+ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
++import { RolesGuard } from '../auth/roles.guard';
++import { Roles } from '../auth/roles.decorator';
+ 
+-// CORRECCIÓN: antes cualquier usuario autenticado podía ver la lista
+-// completa de usuarios y los datos de cualquiera. Ahora un usuario solo
+-// puede ver/editar/borrar su propia cuenta — no existe rol de admin en
+-// este proyecto, así que "propio" es la única regla.
++// Un usuario normal solo puede ver/editar/borrar su propia cuenta. Un
++// admin (role: 'admin', asignado solo vía src/scripts/crear-admin.ts) puede
++// además ver/editar/borrar cualquier cuenta y suspenderlas o reactivarlas.
+ @Controller('users')
+ export class UsersController {
+   constructor(private readonly usersService: UsersService) {}
+@@ -31,12 +33,17 @@ export class UsersController {
+     return this.usersService.create(createUserDto);
+   }
+ 
+-  // Ya no existe un endpoint que liste a todos los usuarios.
++  @UseGuards(JwtAuthGuard, RolesGuard)
++  @Roles('admin')
++  @Get()
++  async findAll(): Promise<User[]> {
++    return this.usersService.findAll();
++  }
+ 
+   @UseGuards(JwtAuthGuard)
+   @Get(':id')
+   async findOne(@Param('id') id: string, @Req() req): Promise<User> {
+-    this.assertOwnAccount(id, req);
++    this.assertOwnAccountOrAdmin(id, req);
+     return this.usersService.findOne(id);
+   }
+ 
+@@ -47,19 +54,35 @@ export class UsersController {
+     @Body() updateUserDto: UpdateUserDto,
+     @Req() req,
+   ): Promise<User> {
+-    this.assertOwnAccount(id, req);
++    this.assertOwnAccountOrAdmin(id, req);
+     return this.usersService.update(id, updateUserDto);
+   }
+ 
+   @UseGuards(JwtAuthGuard)
+   @Delete(':id')
+   async delete(@Param('id') id: string, @Req() req): Promise<boolean> {
+-    this.assertOwnAccount(id, req);
++    this.assertOwnAccountOrAdmin(id, req);
+     return this.usersService.delete(id);
+   }
+ 
+-  private assertOwnAccount(id: string, req: any): void {
+-    if (req.user?.userId !== id) {
++  @UseGuards(JwtAuthGuard, RolesGuard)
++  @Roles('admin')
++  @Patch(':id/suspender')
++  async suspender(@Param('id') id: string): Promise<User> {
++    return this.usersService.setActive(id, false);
++  }
++
++  @UseGuards(JwtAuthGuard, RolesGuard)
++  @Roles('admin')
++  @Patch(':id/activar')
++  async activar(@Param('id') id: string): Promise<User> {
++    return this.usersService.setActive(id, true);
++  }
++
++  private assertOwnAccountOrAdmin(id: string, req: any): void {
++    const isOwner = req.user?.userId === id;
++    const isAdmin = req.user?.role === 'admin';
++    if (!isOwner && !isAdmin) {
+       throw new ForbiddenException('Solo puedes ver o modificar tu propia cuenta');
+     }
+   }
+diff --git a/backend/src/users/users.resolver.ts b/backend/src/users/users.resolver.ts
+index 9615182..1e0a612 100644
+--- a/backend/src/users/users.resolver.ts
++++ b/backend/src/users/users.resolver.ts
+@@ -1,52 +1,75 @@
+-import { Resolver, Query, Mutation, Args, ID, Context } from '@nestjs/graphql';
+-import { ForbiddenException, UseGuards } from '@nestjs/common';
+-import { UsersService } from './users.service';
+-import { User } from './user.entity';
+-import { CreateUserDto } from './dto/create-user.dto';
+-import { UpdateUserDto } from './dto/update-user.dto';
+-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+-
+-// Mismo criterio que en users.controller.ts: sin rol de admin, cada
+-// usuario solo puede ver/editar/borrar su propia cuenta. Ya no existe
+-// una query que devuelva a todos los usuarios.
+-@Resolver(() => User)
+-export class UsersResolver {
+-  constructor(private readonly usersService: UsersService) {}
+-
+-  @Mutation(() => User)
+-  createUser(@Args('input') input: CreateUserDto) {
+-    return this.usersService.create(input);
+-  }
+-
+-  @UseGuards(JwtAuthGuard)
+-  @Query(() => User)
+-  user(@Args('id', { type: () => ID }) id: string, @Context() context) {
+-    this.assertOwnAccount(id, context);
+-    return this.usersService.findOne(id);
+-  }
+-
+-  @UseGuards(JwtAuthGuard)
+-  @Mutation(() => User)
+-  updateUser(
+-    @Args('id', { type: () => ID }) id: string,
+-    @Args('input') input: UpdateUserDto,
+-    @Context() context,
+-  ) {
+-    this.assertOwnAccount(id, context);
+-    return this.usersService.update(id, input);
+-  }
+-
+-  @UseGuards(JwtAuthGuard)
+-  @Mutation(() => Boolean)
+-  deleteUser(@Args('id', { type: () => ID }) id: string, @Context() context) {
+-    this.assertOwnAccount(id, context);
+-    return this.usersService.delete(id);
+-  }
+-
+-  private assertOwnAccount(id: string, context: any): void {
+-    const userId = context?.req?.user?.userId;
+-    if (userId !== id) {
+-      throw new ForbiddenException('Solo puedes ver o modificar tu propia cuenta');
+-    }
+-  }
+-}
++import { Resolver, Query, Mutation, Args, ID, Context } from '@nestjs/graphql';
++import { ForbiddenException, UseGuards } from '@nestjs/common';
++import { UsersService } from './users.service';
++import { User } from './user.entity';
++import { CreateUserDto } from './dto/create-user.dto';
++import { UpdateUserDto } from './dto/update-user.dto';
++import { JwtAuthGuard } from '../auth/jwt-auth.guard';
++import { RolesGuard } from '../auth/roles.guard';
++import { Roles } from '../auth/roles.decorator';
++
++// Mismo criterio que en users.controller.ts: un usuario normal solo puede
++// ver/editar/borrar su propia cuenta; un admin puede hacerlo con cualquiera
++// y además listar todas las cuentas.
++@Resolver(() => User)
++export class UsersResolver {
++  constructor(private readonly usersService: UsersService) {}
++
++  @Mutation(() => User)
++  createUser(@Args('input') input: CreateUserDto) {
++    return this.usersService.create(input);
++  }
++
++  @UseGuards(JwtAuthGuard, RolesGuard)
++  @Roles('admin')
++  @Query(() => [User])
++  users() {
++    return this.usersService.findAll();
++  }
++
++  @UseGuards(JwtAuthGuard)
++  @Query(() => User)
++  user(@Args('id', { type: () => ID }) id: string, @Context() context) {
++    this.assertOwnAccountOrAdmin(id, context);
++    return this.usersService.findOne(id);
++  }
++
++  @UseGuards(JwtAuthGuard)
++  @Mutation(() => User)
++  updateUser(
++    @Args('id', { type: () => ID }) id: string,
++    @Args('input') input: UpdateUserDto,
++    @Context() context,
++  ) {
++    this.assertOwnAccountOrAdmin(id, context);
++    return this.usersService.update(id, input);
++  }
++
++  @UseGuards(JwtAuthGuard)
++  @Mutation(() => Boolean)
++  deleteUser(@Args('id', { type: () => ID }) id: string, @Context() context) {
++    this.assertOwnAccountOrAdmin(id, context);
++    return this.usersService.delete(id);
++  }
++
++  @UseGuards(JwtAuthGuard, RolesGuard)
++  @Roles('admin')
++  @Mutation(() => User)
++  suspenderUsuario(@Args('id', { type: () => ID }) id: string) {
++    return this.usersService.setActive(id, false);
++  }
++
++  @UseGuards(JwtAuthGuard, RolesGuard)
++  @Roles('admin')
++  @Mutation(() => User)
++  activarUsuario(@Args('id', { type: () => ID }) id: string) {
++    return this.usersService.setActive(id, true);
++  }
++
++  private assertOwnAccountOrAdmin(id: string, context: any): void {
++    const user = context?.req?.user;
++    if (user?.userId !== id && user?.role !== 'admin') {
++      throw new ForbiddenException('Solo puedes ver o modificar tu propia cuenta');
++    }
++  }
++}
+diff --git a/backend/src/users/users.service.ts b/backend/src/users/users.service.ts
+index 3992132..fba9bec 100644
+--- a/backend/src/users/users.service.ts
++++ b/backend/src/users/users.service.ts
+@@ -1,75 +1,85 @@
+-import {
+-  ConflictException,
+-  Injectable,
+-  NotFoundException,
+-} from '@nestjs/common';
+-import { InjectModel } from '@nestjs/mongoose';
+-import { Model } from 'mongoose';
+-import * as bcrypt from 'bcryptjs';
+-import { User } from './user.entity';
+-import { CreateUserDto } from './dto/create-user.dto';
+-import { UpdateUserDto } from './dto/update-user.dto';
+-
+-@Injectable()
+-export class UsersService {
+-  constructor(@InjectModel('User') private readonly userModel: Model<User>) {}
+-
+-  async create(createUserDto: CreateUserDto): Promise<User> {
+-    const hashedPassword = await bcrypt.hash(createUserDto.password, 10);
+-    const newUser = new this.userModel({
+-      ...createUserDto,
+-      password: hashedPassword,
+-    });
+-    try {
+-      const saved = await newUser.save();
+-      return this.stripPassword(saved);
+-    } catch (error: any) {
+-      if (error?.code === 11000) {
+-        throw new ConflictException('El correo ya está registrado');
+-      }
+-      throw error;
+-    }
+-  }
+-
+-  async findAll(): Promise<User[]> {
+-    return this.userModel.find().select('-password');
+-  }
+-
+-  async findOne(id: string): Promise<User> {
+-    const user = await this.userModel.findById(id).select('-password');
+-    if (!user) {
+-      throw new NotFoundException('Usuario no encontrado');
+-    }
+-    return user;
+-  }
+-
+-  async findByEmailWithPassword(
+-    email: string,
+-  ): Promise<(User & { _id: any }) | null> {
+-    return this.userModel.findOne({ email }).select('+password') as any;
+-  }
+-
+-  async update(id: string, updateUserDto: UpdateUserDto): Promise<User> {
+-    const updated = await this.userModel
+-      .findByIdAndUpdate(id, updateUserDto, { new: true })
+-      .select('-password');
+-    if (!updated) {
+-      throw new NotFoundException('Usuario no encontrado');
+-    }
+-    return updated;
+-  }
+-
+-  async delete(id: string): Promise<boolean> {
+-    const deleted = await this.userModel.findByIdAndDelete(id);
+-    if (!deleted) {
+-      throw new NotFoundException('Usuario no encontrado');
+-    }
+-    return true;
+-  }
+-
+-  private stripPassword(user: any): User {
+-    const plain = user.toObject ? user.toObject() : user;
+-    delete plain.password;
+-    return plain;
+-  }
++import {
++  ConflictException,
++  Injectable,
++  NotFoundException,
++} from '@nestjs/common';
++import { InjectModel } from '@nestjs/mongoose';
++import { Model } from 'mongoose';
++import * as bcrypt from 'bcryptjs';
++import { User } from './user.entity';
++import { CreateUserDto } from './dto/create-user.dto';
++import { UpdateUserDto } from './dto/update-user.dto';
++
++@Injectable()
++export class UsersService {
++  constructor(@InjectModel('User') private readonly userModel: Model<User>) {}
++
++  async create(createUserDto: CreateUserDto): Promise<User> {
++    const hashedPassword = await bcrypt.hash(createUserDto.password, 10);
++    const newUser = new this.userModel({
++      ...createUserDto,
++      password: hashedPassword,
++    });
++    try {
++      const saved = await newUser.save();
++      return this.stripPassword(saved);
++    } catch (error: any) {
++      if (error?.code === 11000) {
++        throw new ConflictException('El correo ya está registrado');
++      }
++      throw error;
++    }
++  }
++
++  async findAll(): Promise<User[]> {
++    return this.userModel.find().select('-password');
++  }
++
++  async findOne(id: string): Promise<User> {
++    const user = await this.userModel.findById(id).select('-password');
++    if (!user) {
++      throw new NotFoundException('Usuario no encontrado');
++    }
++    return user;
++  }
++
++  async findByEmailWithPassword(
++    email: string,
++  ): Promise<(User & { _id: any }) | null> {
++    return this.userModel.findOne({ email }).select('+password') as any;
++  }
++
++  async update(id: string, updateUserDto: UpdateUserDto): Promise<User> {
++    const updated = await this.userModel
++      .findByIdAndUpdate(id, updateUserDto, { new: true })
++      .select('-password');
++    if (!updated) {
++      throw new NotFoundException('Usuario no encontrado');
++    }
++    return updated;
++  }
++
++  async delete(id: string): Promise<boolean> {
++    const deleted = await this.userModel.findByIdAndDelete(id);
++    if (!deleted) {
++      throw new NotFoundException('Usuario no encontrado');
++    }
++    return true;
++  }
++
++  async setActive(id: string, active: boolean): Promise<User> {
++    const updated = await this.userModel
++      .findByIdAndUpdate(id, { active }, { new: true })
++      .select('-password');
++    if (!updated) {
++      throw new NotFoundException('Usuario no encontrado');
++    }
++    return updated;
++  }
++
++  private stripPassword(user: any): User {
++    const plain = user.toObject ? user.toObject() : user;
++    delete plain.password;
++    return plain;
++  }
+ }
+\ No newline at end of file
+-- 
+2.43.0
+
