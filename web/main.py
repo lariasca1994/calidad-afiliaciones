@@ -66,8 +66,14 @@ ARCHIVOS_ESPERADOS = {fuente["archivo"] for fuente in FUENTES}
 
 # Tope por archivo para la carga propia: es un endpoint público (cualquier
 # cuenta registrada puede usarlo), así que conviene un límite explícito en
-# vez de confiar solo en el disco efímero del contenedor.
-TAMANO_MAXIMO_ARCHIVO_BYTES = 25 * 1024 * 1024
+# vez de confiar solo en el disco efímero del contenedor. 50 MB (subido
+# desde 25 MB) para que quepan los archivos generados con
+# datos_demo.py a una escala más alta que la que usa el botón de datos
+# de ejemplo (ESCALA_DEMO_WEB, arriba) sin acercarse al límite real de
+# memoria del contenedor: en el peor caso son 6 archivos a la vez
+# (~300 MB), que sigue siendo holgado para el tamaño de instancia con el
+# que corre este proyecto.
+TAMANO_MAXIMO_ARCHIVO_BYTES = 50 * 1024 * 1024
 
 
 @app.get("/")

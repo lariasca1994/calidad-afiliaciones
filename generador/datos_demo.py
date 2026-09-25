@@ -622,8 +622,13 @@ def generar(escala: float, semilla: int, carpeta: Path | None = None) -> None:
     destino = carpeta if carpeta is not None else ENTRADA
     rng = random.Random(semilla)
 
-    base = {"afiliaciones": 900, "digital": 3200, "sat": 900,
-            "irl": 5000, "xml": 9000}
+    # Volumen base a escala 1.0 (subido un poco desde 900/3200/900/5000/9000):
+    # sigue corriendo en segundos y muy por debajo del tope de carga
+    # (TAMANO_MAXIMO_ARCHIVO_BYTES en web/main.py), pero deja un dataset de
+    # ejemplo algo más parecido en volumen al real sin tener que pasar
+    # --escala a mano.
+    base = {"afiliaciones": 1200, "digital": 4200, "sat": 1200,
+            "irl": 6500, "xml": 12000}
     n = {k: max(1, int(v * escala)) for k, v in base.items()}
 
     # El pool operativo cubre exactamente los tres canales que participan
