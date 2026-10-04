@@ -33,7 +33,7 @@ pueda confiar.
 
 ## Demo en vivo
 
-**Panel:** [calidad-afiliaciones.blueocean-86680030.eastus.azurecontainerapps.io](https://calidad-afiliaciones.blueocean-86680030.eastus.azurecontainerapps.io/)
+**Panel:** [abrir la demo en vivo](https://calidad-afiliaciones.blueocean-86680030.eastus.azurecontainerapps.io/)
 
 El registro es público y libre — ver [Panel web](#panel-web-opcional) para el
 detalle de cómo funciona por cuenta.
