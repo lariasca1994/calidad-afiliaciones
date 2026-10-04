@@ -264,7 +264,7 @@ cada uno se deduce del esquema en `sql/01_esquema.sql`.
 
 ## Encendido automático (opcional)
 
-El plan gratuito de Aiven apaga el servicio tras un periodo de inactividad.
+Aiven apaga el servicio tras un periodo de inactividad.
 Encenderlo de nuevo no es instantáneo: Aiven restaura el último respaldo, lo
 que puede tardar desde un par de minutos hasta bastante más, según el tamaño
 de los datos.
@@ -336,7 +336,7 @@ Aiven.
 
 ### 1. Instalar el conector
 
-Power Query necesita el **MySQL Connector/NET**, gratuito, de Oracle:
+Power Query necesita el **MySQL Connector/NET** de Oracle:
 [dev.mysql.com/downloads/connector/net](https://dev.mysql.com/downloads/connector/net/).
 Elige la versión Windows (MSI Installer); hay un enlace para descargar sin
 crear cuenta ("No thanks, just start my download").
