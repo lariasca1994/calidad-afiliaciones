@@ -76,6 +76,12 @@ ARCHIVOS_ESPERADOS = {fuente["archivo"] for fuente in FUENTES}
 TAMANO_MAXIMO_ARCHIVO_BYTES = 50 * 1024 * 1024
 
 
+@app.get("/favicon.ico", include_in_schema=False)
+def favicon():
+    # Los navegadores lo piden en la raíz aunque la página declare otro ícono.
+    return FileResponse(RAIZ / "web" / "static" / "iconos" / "favicon.ico")
+
+
 @app.get("/")
 def inicio(request: Request, sesion: dict | None = Depends(sesion_opcional)):
     email = sesion["email"] if sesion else None

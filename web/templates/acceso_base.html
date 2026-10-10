@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{# Portada común de inicio de sesión y registro: panel de marca a la
+   izquierda, formulario a la derecha. Las hijas definen paso,
+   titulo_form, subtitulo y formulario. #}
+{% block cabeza %}<link rel="stylesheet" href="/static/css/acceso.css" />{% endblock %}
+{% block clase_body %}acceso{% endblock %}
+{% block cuerpo %}
+<div class="portada">
+    <aside class="marca">
+        <a href="/" class="marca-logo">
+            <img src="/static/iconos/icono.svg" alt="" />
+            Calidad de Afiliaciones
+            <small>MySQL</small>
+        </a>
+
+        <div class="marca-mensaje">
+            <p class="marca-etiqueta">Calidad de datos · Afiliaciones</p>
+            <h2 class="marca-titular">Seis fuentes. <mark>Una sola cifra.</mark></h2>
+            <p class="marca-bajada">
+                Los canales digital, SAT y físico reportan cada uno a su manera.
+                Aquí se homologan, se depuran los duplicados y queda una
+                producción en la que sí se puede confiar.
+            </p>
+
+            <svg class="flujo" viewBox="0 0 500 250" role="img"
+                 aria-label="Tres canales de afiliación que convergen en un solo registro por afiliado">
+                <defs>
+                    <path id="canal-digital" d="M86 40 C210 40 230 125 330 125" />
+                    <path id="canal-sat" d="M86 125 H330" />
+                    <path id="canal-fisico" d="M86 210 C210 210 230 125 330 125" />
+                    <path id="canal-salida" d="M330 125 H452" />
+                </defs>
+
+                <use href="#canal-digital" class="flujo-canal" />
+                <use href="#canal-sat" class="flujo-canal" />
+                <use href="#canal-fisico" class="flujo-canal" />
+                <use href="#canal-salida" class="flujo-salida" />
+
+                <text x="72" y="44" text-anchor="end" class="flujo-nombre">DIGITAL</text>
+                <text x="72" y="129" text-anchor="end" class="flujo-nombre">SAT</text>
+                <text x="72" y="214" text-anchor="end" class="flujo-nombre">FÍSICO</text>
+                <circle cx="86" cy="40" r="6" class="flujo-origen" />
+                <circle cx="86" cy="125" r="6" class="flujo-origen" />
+                <circle cx="86" cy="210" r="6" class="flujo-origen" />
+
+                {# Registros que avanzan por cada canal; los grises son
+                   duplicados que se descartan antes de consolidar. Los
+                   "begin" negativos los dejan ya en movimiento al cargar. #}
+                {% for canal, inicio, dup in [
+                    ("canal-digital", "0s", false), ("canal-digital", "-1.8s", true),
+                    ("canal-sat", "-0.9s", false), ("canal-sat", "-2.7s", false),
+                    ("canal-fisico", "-0.4s", false), ("canal-fisico", "-2.2s", true)] %}
+                <circle r="4" class="flujo-dato{% if dup %} flujo-dato--dup{% endif %}">
+                    <animateMotion dur="3.6s" begin="{{ inicio }}" repeatCount="indefinite"><mpath href="#{{ canal }}" /></animateMotion>
+                    <animate attributeName="opacity" dur="3.6s" begin="{{ inicio }}" repeatCount="indefinite"
+                             values="1;1;0" keyTimes="{% if dup %}0;0.55;0.75{% else %}0;0.9;1{% endif %}" />
+                </circle>
+                {% endfor %}
+                {% for inicio in ["0s", "-0.6s", "-1.2s"] %}
+                <circle r="4" class="flujo-dato">
+                    <animateMotion dur="1.8s" begin="{{ inicio }}" repeatCount="indefinite"><mpath href="#canal-salida" /></animateMotion>
+                </circle>
+                {% endfor %}
+
+                <circle cx="452" cy="125" r="13" class="flujo-nodo-anillo" />
+                <circle cx="452" cy="125" r="8" class="flujo-nodo" />
+                <text x="452" y="160" text-anchor="middle" class="flujo-leyenda">1 AFILIADO</text>
+                <text x="452" y="176" text-anchor="middle" class="flujo-nombre">1 REGISTRO</text>
+            </svg>
+
+            <ol class="pasos">
+                <li><strong>Homologa</strong>Una llave tipo + número de documento común a todos los canales.</li>
+                <li><strong>Depura</strong>Un registro por afiliado, según la prioridad del canal.</li>
+                <li><strong>Mide</strong>Producción, duplicidad y calidad por fuente en un tablero.</li>
+            </ol>
+        </div>
+
+        <p class="marca-pie">Proyecto de portafolio · Python · MySQL · FastAPI</p>
+    </aside>
+
+    <main class="lado">
+        <div class="lado-barra">
+            <a href="/" class="volver">← Volver al inicio</a>
+            <button type="button" id="alternar-tema" class="boton-tema"
+                    aria-label="Alternar tema claro/oscuro" title="Alternar tema claro/oscuro">🌙</button>
+        </div>
+
+        <section class="tarjeta" aria-labelledby="titulo-acceso">
+            <p class="tarjeta-paso">{% block paso %}{% endblock %}</p>
+            <h1 id="titulo-acceso" class="tarjeta-titulo">{% block titulo_form %}{% endblock %}</h1>
+            <p class="tarjeta-subtitulo">{% block subtitulo %}{% endblock %}</p>
+
+            {% if error %}
+            <div class="alerta" role="alert">{{ error }}</div>
+            {% endif %}
+
+            {% block formulario %}{% endblock %}
+
+            <p class="nota">
+                <span aria-hidden="true">🔒</span>
+                <span>Cada cuenta genera y ve solo sus propios datos de ejemplo; nadie más los consulta.</span>
+            </p>
+        </section>
+    </main>
+</div>
+{% endblock %}
