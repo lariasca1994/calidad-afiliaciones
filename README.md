@@ -12,6 +12,20 @@
 ![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white)
 ![Excel](https://img.shields.io/badge/Power_Query_%2F_Power_Pivot-217346?style=for-the-badge&logo=microsoftexcel&logoColor=white)
 
+## Contenido
+
+1. [Presentación](#1-presentación)
+2. [Estructura del proyecto](#2-estructura-del-proyecto)
+3. [Arquitectura](#3-arquitectura)
+4. [Plataformas y su función](#4-plataformas-y-su-función)
+5. [Cómo usar la plataforma](#5-cómo-usar-la-plataforma)
+6. [Instalación para pruebas](#6-instalación-para-pruebas)
+7. [Autor y licencia](#7-autor-y-licencia)
+
+---
+
+## 1. Presentación
+
 Consolidación y análisis de calidad de la producción de afiliaciones de una EPS
 que recibe trámites por tres canales distintos, más un histórico de radicación
 y un archivo de novedades laborales.
@@ -31,58 +45,14 @@ pueda confiar.
 - **Cómo se usa:** desde el navegador (panel web, sin instalar nada), desde la
   terminal (`python setup.py`) o desde Excel con Power Query.
 
-## Demo en vivo
+### Demo en vivo
 
 **Panel:** [abrir la demo en vivo](https://calidad-afiliaciones.blueocean-86680030.eastus.azurecontainerapps.io/)
 
-El registro es público y libre — ver [Panel web](#panel-web-opcional) para el
+El registro es público y libre — ver [Panel web](#51-panel-web) para el
 detalle de cómo funciona por cuenta.
 
----
-
-## Explóralo en tres minutos
-
-No hacen falta datos reales para probar el proyecto. Hay un generador que crea
-las seis fuentes con la misma estructura, separadores y codificación que los
-archivos originales, reproduciendo a propósito los mismos problemas que
-aparecieron al analizar los datos reales.
-
-```bash
-git clone https://github.com/lariasca1994/calidad-afiliaciones.git
-cd calidad-afiliaciones
-
-python -m venv .venv
-.venv\Scripts\Activate.ps1        # Windows
-source .venv/bin/activate         # Linux o macOS
-
-pip install -r requirements.txt
-cp .env.example .env
-```
-
-Completa el `.env` con una base MySQL propia (ver [Requisitos](#requisitos) e
-[Instalación](#instalación) más abajo), y luego:
-
-```bash
-python generador/datos_demo.py
-python setup.py
-```
-
-Eso deja el tablero de indicadores en pantalla, con los mismos hallazgos que
-aparecen al analizar los datos reales —duplicidad multicanal, duplicidad
-interna, documentos fuera de catálogo, novedades laborales que no son
-afiliaciones— aunque las cifras no sean idénticas, por tratarse de datos
-aleatorios.
-
-A partir de ahí, el resto queda a criterio de quien lo explore: revisar el SQL
-en `sql/`, leer las decisiones en `docs/decisiones.md`, conectar Excel para
-armar tablas dinámicas sobre la tabla `consolidado` (ver
-[Power Query y Power Pivot](#power-query-y-power-pivot)), o entrar directamente
-a la [demo en vivo](#demo-en-vivo) y generar los datos de ejemplo con un clic,
-sin instalar nada.
-
----
-
-## El problema en concreto
+### El problema en concreto
 
 Seis fuentes que no hablan entre sí:
 
@@ -107,9 +77,7 @@ canal. Sumar las tres fuentes cuenta a la misma persona hasta tres veces.
 **Las novedades laborales parecen afiliaciones.** Son 167.274 registros que, si
 se incluyen, multiplican la producción por más de tres.
 
----
-
-## Cómo funciona
+### Cómo funciona
 
 1. **Carga en MySQL.** Los archivos entran tal cual, como texto: rechazar filas
    impediría medir la calidad.
@@ -127,22 +95,7 @@ incluidos los criterios alternativos razonables y qué cambiaría al adoptarlos.
 
 ---
 
-## Arquitectura
-
-<p align="center">
-  <img src="docs/arquitectura.svg" alt="Diagrama de arquitectura: panel web en Azure Container Apps, MySQL gestionado en Aiven, consola local, Excel y despliegue con GitHub Actions" width="100%">
-</p>
-
-- **Azure Container Apps** corre el panel web (FastAPI + Jinja2) y el mismo
-  pipeline ETL que usa la consola; cada cuenta ve solo sus propios datos.
-- **Aiven** aloja la base MySQL 8. Si está dormida, el proyecto la despierta con
-  la API de Aiven antes de conectarse.
-- **En local**, `python setup.py` ejecuta el mismo pipeline, y el generador crea
-  datos sintéticos para probar sin datos reales.
-- **Excel** se conecta directo a la tabla `consolidado` con Power Query.
-- **GitHub Actions** construye la imagen Docker y la despliega en Azure.
-
-## Estructura
+## 2. Estructura del proyecto
 
 ```
 sql/
@@ -177,38 +130,91 @@ setup.py                    Comando único
 
 ---
 
-## Requisitos
+## 3. Arquitectura
 
-- Python 3.10 o superior
-- Una base MySQL 8 accesible
+<p align="center">
+  <img src="docs/arquitectura.svg" alt="Diagrama de arquitectura: panel web en Azure Container Apps, MySQL gestionado en Aiven, consola local, Excel y despliegue con GitHub Actions" width="100%">
+</p>
 
-El proyecto se desarrolló contra un servicio gestionado en la nube, pero
-funciona con cualquier MySQL 8 cambiando el `.env`.
+- El panel web (FastAPI + Jinja2) corre el mismo pipeline ETL que usa la consola;
+  cada cuenta ve solo sus propios datos.
+- Si la base MySQL 8 está dormida, el proyecto la despierta antes de conectarse.
+- **En local**, `python setup.py` ejecuta el mismo pipeline, y el generador crea
+  datos sintéticos para probar sin datos reales.
+- **Excel** se conecta directo a la tabla `consolidado` con Power Query.
 
----
+### Nota técnica
 
-## Instalación
-
-```bash
-git clone https://github.com/lariasca1994/calidad-afiliaciones.git
-cd calidad-afiliaciones
-
-python -m venv .venv
-.venv\Scripts\Activate.ps1        # Windows
-source .venv/bin/activate         # Linux o macOS
-
-pip install -r requirements.txt
-cp .env.example .env
-```
-
-Completa el `.env` con los datos de conexión. La plantilla indica qué es cada
-variable.
+La carga no usa `LOAD DATA LOCAL INFILE`. Ese comando exige que el servidor lo
+tenga habilitado, y los servicios gestionados suelen traerlo desactivado. La
+inserción por lotes desde Python es algo más lenta, pero funciona sin tocar la
+configuración del servidor y permite resolver de paso dos particularidades de
+los archivos: vienen en codificación latin-1 y usan separadores distintos —barra
+vertical en cinco fuentes, punto y coma en la radicación histórica—.
 
 ---
 
-## Uso
+## 4. Plataformas y su función
 
-### Con datos propios
+| Plataforma | Función en el proyecto |
+|---|---|
+| ![Azure Container Apps](https://img.shields.io/badge/Azure_Container_Apps-0078D4?style=for-the-badge&logo=microsoftazure&logoColor=white) | Corre el panel web (FastAPI + Jinja2) y el mismo pipeline ETL que usa la consola. |
+| ![MySQL](https://img.shields.io/badge/MySQL-4479A1?style=for-the-badge&logo=mysql&logoColor=white) | Aiven aloja la base MySQL 8 con las seis fuentes, el consolidado y las cuentas del panel. Si está dormida, el proyecto la despierta con la API de Aiven antes de conectarse. |
+| ![Excel](https://img.shields.io/badge/Power_Query_%2F_Power_Pivot-217346?style=for-the-badge&logo=microsoftexcel&logoColor=white) | Se conecta directo a la tabla `consolidado` para armar tablas dinámicas. |
+| ![GitHub Actions](https://img.shields.io/badge/GitHub_Actions-181717?style=for-the-badge&logo=githubactions&logoColor=white) | Construye la imagen Docker y la despliega en Azure. |
+| ![qa-evidencia](https://img.shields.io/badge/qa--evidencia-2EAD33?style=for-the-badge&logo=playwright&logoColor=white) | Prueba la demo automáticamente y publica la evidencia. |
+
+---
+
+## 5. Cómo usar la plataforma
+
+### 5.1 Panel web
+
+#### Crear una cuenta
+
+1. En la portada, pulsa **Crear cuenta**.
+2. Completa **Correo**, **Contraseña** y **Confirmar contraseña**.
+3. Pulsa **Crear cuenta**. El registro es público y libre, sin aprobación previa.
+
+#### Iniciar sesión
+
+1. Pulsa **Iniciar sesión**, escribe **Correo** y **Contraseña** y pulsa **Entrar**.
+2. Llegas al **Tablero de indicadores**.
+
+#### Cargar datos
+
+Cada cuenta ve exclusivamente sus propios datos: al generar el conjunto de ejemplo,
+esos registros quedan asociados a esa cuenta (columna `usuario_id` en cada
+tabla), de modo que dos cuentas distintas nunca ven ni mezclan los datos de
+la otra, aunque generen "al mismo tiempo". Esto aplica igual en la instancia
+pública que en una corrida local.
+
+- **🎲 Generar datos de ejemplo:** genera un conjunto
+  sintético nuevo para la cuenta que inició sesión (semilla aleatoria en cada
+  clic) y recalcula su consolidado — el mismo camino que
+  `python generador/datos_demo.py && python setup.py`, pero acotado a esa
+  cuenta y sin salir del navegador ni tocar una terminal. Usa una escala más
+  pequeña que la que genera `python generador/datos_demo.py` por defecto
+  (pensada para verse en segundos, no para ser representativa de un volumen
+  real): sigue reproduciendo los mismos problemas de calidad, solo que con
+  menos filas.
+- **📁 Subir mis archivos:** si ya tienes tus propios archivos de origen, despliega
+  un formulario para subir los 6 CSV directamente (deben conservar el nombre exacto
+  que espera el proyecto — ver [Sobre los archivos de origen](#sobre-los-archivos-de-origen));
+  reemplazan cualquier dato de ejemplo que hubiera en esa cuenta y corren el mismo
+  pipeline.
+
+#### Leer el tablero
+
+El panel muestra los mismos cinco bloques de indicadores que el tablero de consola y
+Power Query, en una página con tema claro/oscuro, entre ellos producción consolidada,
+duplicidad, calidad por fuente y tendencia. La sección **Cómo leer estos indicadores** explica cada
+uno, por ejemplo la diferencia entre duplicidad multicanal e interna, los **tipos de
+documento fuera de catálogo** y el **territorio y fecha incompletos**.
+
+### 5.2 Consola
+
+#### Con datos propios
 
 Coloca los archivos de origen en `datos/entrada/` y ejecuta:
 
@@ -216,7 +222,7 @@ Coloca los archivos de origen en `datos/entrada/` y ejecuta:
 python setup.py
 ```
 
-### Con datos sintéticos
+#### Con datos sintéticos
 
 Si no tienes los archivos reales a mano, hay un generador que crea las seis
 fuentes con la misma estructura, separadores y codificación que los archivos
@@ -247,10 +253,11 @@ muestra los indicadores en pantalla.
 
 La carga tarda unos minutos: son más de 400.000 filas y se insertan por lotes.
 
-Desde el panel web, el mismo camino está disponible en un clic — ver
-[Panel web](#panel-web-opcional).
+El uso por consola (`python setup.py`, con datos reales o de ejemplo) no pasa
+por ninguna cuenta del panel: usa un `usuario_id` reservado (0) que nunca
+coincide con una cuenta registrada.
 
-### Sobre los archivos de origen
+#### Sobre los archivos de origen
 
 **No están en el repositorio.** Contienen documentos de identidad, nombres y
 fechas de nacimiento. La carpeta `datos/entrada/` está excluida, y el
@@ -260,81 +267,13 @@ Los archivos esperados son `AFILIACIONES.csv`, `DIGITAL.csv`, `SAT.csv`,
 `PROCESO_IRL.csv`, `XML.csv` y `HOMOLOGACION_DOCUMENTOS.csv`. La estructura de
 cada uno se deduce del esquema en `sql/01_esquema.sql`.
 
----
-
-## Encendido automático (opcional)
-
-Aiven apaga el servicio tras un periodo de inactividad.
-Encenderlo de nuevo no es instantáneo: Aiven restaura el último respaldo, lo
-que puede tardar desde un par de minutos hasta bastante más, según el tamaño
-de los datos.
-
-Completando estas variables en el `.env`, el proyecto verifica el estado antes
-de conectar y lo enciende solo si hace falta, esperando a que quede listo:
-
-```
-AIVEN_API_TOKEN=
-AIVEN_PROJECT_NAME=
-AIVEN_SERVICE_NAME=
-```
-
-El token se genera en el panel de Aiven, en el menú de tu usuario → *Personal
-tokens* → *Generate token*. Sin estas variables, el proyecto funciona igual;
-solo hay que encender el servicio a mano cuando esté apagado.
-
----
-
-## Panel web (opcional)
-
-Hay una instancia pública corriendo en Azure Container Apps — ver
-[Demo en vivo](#demo-en-vivo). Levantarlo en local (`web/`) solo hace falta
-para desarrollo o para conectarlo a una base propia distinta de la pública.
-
-Además del tablero de consola (`python setup.py`) y de Power Query/Power
-Pivot en Excel, el panel muestra los mismos cinco bloques de indicadores en
-una página, con tema claro/oscuro.
-
-```bash
-pip install -r requirements.txt   # ya incluye fastapi/uvicorn
-uvicorn web.main:app --reload --port 8400
-```
-
-Abre `http://localhost:8400`. El registro es público y libre —cualquiera
-puede crear una cuenta desde **Crear cuenta**, sin aprobación previa— y cada
-cuenta ve exclusivamente sus propios datos: al generar el conjunto de ejemplo,
-esos registros quedan asociados a esa cuenta (columna `usuario_id` en cada
-tabla), de modo que dos cuentas distintas nunca ven ni mezclan los datos de
-la otra, aunque generen "al mismo tiempo". Esto aplica igual en la instancia
-pública que en una corrida local.
-
-Desde el tablero, el botón **🎲 Generar datos de ejemplo** genera un conjunto
-sintético nuevo para la cuenta que inició sesión (semilla aleatoria en cada
-clic) y recalcula su consolidado — el mismo camino que
-`python generador/datos_demo.py && python setup.py`, pero acotado a esa
-cuenta y sin salir del navegador ni tocar una terminal. Usa una escala más
-pequeña que la que genera `python generador/datos_demo.py` por defecto
-(pensada para verse en segundos, no para ser representativa de un volumen
-real): sigue reproduciendo los mismos problemas de calidad, solo que con
-menos filas.
-
-Si en cambio ya tienes tus propios archivos de origen, el botón **📁 Subir
-mis archivos** despliega un formulario para subir los 6 CSV directamente
-(deben conservar el nombre exacto que espera el proyecto — ver
-[Sobre los archivos de origen](#sobre-los-archivos-de-origen)); reemplazan
-cualquier dato de ejemplo que hubiera en esa cuenta y corren el mismo
-pipeline.
-
-El uso por consola (`python setup.py`, con datos reales o de ejemplo) no pasa
-por ninguna cuenta del panel: usa un `usuario_id` reservado (0) que nunca
-coincide con una cuenta registrada.
-
-## Power Query y Power Pivot
+### 5.3 Power Query y Power Pivot
 
 Excel se conecta directamente a la tabla `consolidado` en la base de datos, no
 a los CSV: cada vez que se actualiza el libro, trae lo último que haya en
 Aiven.
 
-### 1. Instalar el conector
+#### 1. Instalar el conector
 
 Power Query necesita el **MySQL Connector/NET** de Oracle:
 [dev.mysql.com/downloads/connector/net](https://dev.mysql.com/downloads/connector/net/).
@@ -345,14 +284,14 @@ Instálalo con las opciones por defecto y **cierra Excel por completo** antes,
 si lo tenías abierto: el conector se registra como complemento del sistema y
 Excel necesita reiniciar para detectarlo.
 
-### 2. Verificar que Excel lo reconoce
+#### 2. Verificar que Excel lo reconoce
 
 **Datos → Obtener datos → Desde base de datos → Desde base de datos de
 MySQL**. Si aparece en la lista, quedó instalado. Si no aparece, reinicia el
 equipo: a veces el registro del driver no se completa hasta el siguiente
 arranque.
 
-### 3. Conectar
+#### 3. Conectar
 
 En la ventana de conexión:
 
@@ -379,7 +318,7 @@ Configuración del origen de datos**, localizar la entrada del servidor,
 **Editar permisos → Borrar permisos**, y volver a intentar la conexión desde
 cero.
 
-### 4. Antes de conectar, comprobar que el servicio esté encendido
+#### 4. Antes de conectar, comprobar que el servicio esté encendido
 
 Excel no tiene el despertador automático que sí tiene `setup.py`. Si el
 servicio lleva un rato sin uso, hay que despertarlo antes:
@@ -390,7 +329,7 @@ python setup.py --solo-analisis
 
 O entrar un momento al panel de Aiven.
 
-### 5. El modelo
+#### 5. El modelo
 
 Una vez conectada la consulta, **Agregar al modelo de datos** desde Power
 Query la incorpora a Power Pivot. Desde ahí, tabla dinámica con `periodo` en
@@ -398,7 +337,7 @@ filas, `clasificacion_tramite` en columnas y recuento de `fila_id` en valores
 da la clasificación del trámite (Reinscripción / Traslado / Afiliación Nueva)
 por periodo, ya interactiva y filtrable por segmentadores.
 
-### Una advertencia antes de guardar el libro
+#### Una advertencia antes de guardar el libro
 
 Un archivo `.xlsx` con la consulta cargada al modelo de datos **guarda una
 copia completa de lo consultado dentro del propio binario**, documentos de
@@ -411,24 +350,96 @@ nunca en el repositorio.
 
 ---
 
-## Nota técnica
+## 6. Instalación para pruebas
 
-La carga no usa `LOAD DATA LOCAL INFILE`. Ese comando exige que el servidor lo
-tenga habilitado, y los servicios gestionados suelen traerlo desactivado. La
-inserción por lotes desde Python es algo más lenta, pero funciona sin tocar la
-configuración del servidor y permite resolver de paso dos particularidades de
-los archivos: vienen en codificación latin-1 y usan separadores distintos —barra
-vertical en cinco fuentes, punto y coma en la radicación histórica—.
+### Requisitos
+
+- Python 3.10 o superior
+- Una base MySQL 8 accesible
+
+El proyecto se desarrolló contra un servicio gestionado en la nube, pero
+funciona con cualquier MySQL 8 cambiando el `.env`.
+
+### Instalación
+
+```bash
+git clone https://github.com/lariasca1994/calidad-afiliaciones.git
+cd calidad-afiliaciones
+
+python -m venv .venv
+.venv\Scripts\Activate.ps1        # Windows
+source .venv/bin/activate         # Linux o macOS
+
+pip install -r requirements.txt
+cp .env.example .env
+```
+
+Completa el `.env` con los datos de conexión. La plantilla indica qué es cada
+variable.
+
+### Explóralo en tres minutos
+
+No hacen falta datos reales para probar el proyecto. Hay un generador que crea
+las seis fuentes con la misma estructura, separadores y codificación que los
+archivos originales, reproduciendo a propósito los mismos problemas que
+aparecieron al analizar los datos reales. Con el `.env` completo:
+
+```bash
+python generador/datos_demo.py
+python setup.py
+```
+
+Eso deja el tablero de indicadores en pantalla, con los mismos hallazgos que
+aparecen al analizar los datos reales —duplicidad multicanal, duplicidad
+interna, documentos fuera de catálogo, novedades laborales que no son
+afiliaciones— aunque las cifras no sean idénticas, por tratarse de datos
+aleatorios.
+
+A partir de ahí, el resto queda a criterio de quien lo explore: revisar el SQL
+en `sql/`, leer las decisiones en `docs/decisiones.md`, conectar Excel para
+armar tablas dinámicas sobre la tabla `consolidado` (ver
+[Power Query y Power Pivot](#53-power-query-y-power-pivot)), o entrar directamente
+a la [demo en vivo](#demo-en-vivo) y generar los datos de ejemplo con un clic,
+sin instalar nada.
+
+### Panel web en local
+
+Hay una instancia pública corriendo en Azure Container Apps — ver
+[Demo en vivo](#demo-en-vivo). Levantarlo en local (`web/`) solo hace falta
+para desarrollo o para conectarlo a una base propia distinta de la pública.
+
+```bash
+pip install -r requirements.txt   # ya incluye fastapi/uvicorn
+uvicorn web.main:app --reload --port 8400
+```
+
+Abre `http://localhost:8400` y crea tu cuenta desde **Crear cuenta**.
+
+### Encendido automático (opcional)
+
+Aiven apaga el servicio tras un periodo de inactividad.
+Encenderlo de nuevo no es instantáneo: Aiven restaura el último respaldo, lo
+que puede tardar desde un par de minutos hasta bastante más, según el tamaño
+de los datos.
+
+Completando estas variables en el `.env`, el proyecto verifica el estado antes
+de conectar y lo enciende solo si hace falta, esperando a que quede listo:
+
+```
+AIVEN_API_TOKEN=
+AIVEN_PROJECT_NAME=
+AIVEN_SERVICE_NAME=
+```
+
+El token se genera en el panel de Aiven, en el menú de tu usuario → *Personal
+tokens* → *Generate token*. Sin estas variables, el proyecto funciona igual;
+solo hay que encender el servicio a mano cuando esté apagado.
 
 ---
 
-## Autor
+## 7. Autor y licencia
 
 **Luis Felipe Arias Carriazo**
 [GitHub](https://github.com/lariasca1994) · [LinkedIn](https://linkedin.com/in/lfac1)
 
----
-
-## Licencia
-
-MIT
+Licencia: MIT.
