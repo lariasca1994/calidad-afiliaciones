@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>{% block titulo %}Calidad de Afiliaciones{% endblock %}</title>
     <link rel="icon" href="/static/iconos/icono.svg" type="image/svg+xml" />
     <link rel="icon" href="/favicon.ico" sizes="48x48" />
@@ -41,11 +41,16 @@
 </head>
 <body class="{% block clase_body %}min-h-full bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 antialiased{% endblock %}">
     {% block cuerpo %}
-    <nav class="bg-slate-900 dark:bg-slate-900 text-white px-6 py-3 flex items-center justify-between">
-        <a href="/" class="font-semibold flex items-center gap-2">
-            <img src="/static/iconos/icono.svg" alt="" class="w-6 h-6" /> Calidad de Afiliaciones
+    {# En celulares angostos el nombre cede su lugar a los enlaces: el ícono
+       sigue identificando el sitio. Los márgenes respetan el notch en
+       horizontal. #}
+    <nav class="bg-slate-900 dark:bg-slate-900 text-white py-3 flex items-center justify-between gap-3 whitespace-nowrap"
+         style="padding-left: max(1rem, env(safe-area-inset-left)); padding-right: max(1rem, env(safe-area-inset-right));">
+        <a href="/" class="font-semibold flex items-center gap-2" aria-label="Calidad de Afiliaciones, inicio">
+            <img src="/static/iconos/icono.svg" alt="" class="w-7 h-7" />
+            <span class="hidden min-[440px]:inline">Calidad de Afiliaciones</span>
         </a>
-        <div class="flex items-center gap-5 text-sm">
+        <div class="flex items-center gap-4 sm:gap-5 text-sm">
             {% if email %}
                 <a href="/tablero" class="hover:text-mysql">Tablero</a>
                 <form action="/logout" method="post" class="inline">
@@ -65,7 +70,7 @@
         </div>
     </nav>
 
-    <main class="{% if centrar %}min-h-[80vh] flex items-center justify-center px-6 py-12{% else %}max-w-6xl mx-auto px-6 py-10{% endif %}">
+    <main class="max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-10">
         {% block contenido %}{% endblock %}
     </main>
     {% endblock %}

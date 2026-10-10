@@ -65,6 +65,7 @@ body.acceso {
   display: grid;
   grid-template-columns: minmax(0, 1.1fr) minmax(420px, 1fr);
   min-height: 100vh;
+  min-height: 100dvh;
 }
 
 /* ───── Panel de marca ───── */
@@ -373,7 +374,8 @@ body.acceso {
   background: var(--fondo);
   color: var(--texto);
   font: inherit;
-  font-size: 0.95rem;
+  /* 16px: con menos, Safari en iPhone amplía la página al enfocar. */
+  font-size: 1rem;
   transition: border-color 0.15s, box-shadow 0.15s;
 }
 
@@ -444,15 +446,40 @@ body.acceso {
   line-height: 1.5;
 }
 
-/* ───── Responsive ───── */
-@media (max-width: 960px) {
+/* ───── Responsive ─────
+   Mismos cortes que el resto del portafolio: 1050 (tablet), 760
+   (celular), 360 (celular angosto). */
+@media (max-width: 1050px) {
+  .portada {
+    grid-template-columns: minmax(0, 1fr) minmax(380px, 1fr);
+  }
+
+  /* Tres columnas de pasos no caben junto al formulario. */
+  .pasos {
+    display: none;
+  }
+}
+
+/* Tablet o portátil apaisado con poca altura: lo esencial sin scroll. */
+@media (min-width: 761px) and (max-height: 640px) {
+  .flujo,
+  .pasos {
+    display: none;
+  }
+
+  .marca {
+    padding-block: 1.5rem;
+  }
+}
+
+@media (max-width: 760px) {
   .portada {
     grid-template-columns: 1fr;
   }
 
   .marca {
     gap: 1.25rem;
-    padding: 1.5rem 1.25rem 3.5rem;
+    padding: calc(1.5rem + env(safe-area-inset-top, 0px)) 1.25rem 3.5rem;
   }
 
   .marca-bajada,
@@ -477,11 +504,11 @@ body.acceso {
     position: static;
     place-items: start center;
     margin-top: -2rem;
-    padding: 0 1rem 3rem;
+    padding: 0 1rem calc(3rem + env(safe-area-inset-bottom, 0px));
   }
 
   .lado-barra {
-    top: 1.25rem;
+    top: calc(1.25rem + env(safe-area-inset-top, 0px));
     left: auto;
   }
 
@@ -494,6 +521,29 @@ body.acceso {
 
   .volver {
     display: none;
+  }
+}
+
+@media (max-width: 360px) {
+  .marca {
+    padding-inline: 1rem;
+  }
+
+  /* El sello "MySQL" no cabe junto al nombre y el botón de tema. */
+  .marca-logo small {
+    display: none;
+  }
+
+  .marca-titular {
+    font-size: 1.5rem;
+  }
+
+  .lado {
+    padding-inline: 0.75rem;
+  }
+
+  .tarjeta {
+    padding: 1.25rem;
   }
 }
 
