@@ -90,7 +90,7 @@ def inicio(request: Request, sesion: dict | None = Depends(sesion_opcional)):
 
 @app.get("/registro")
 def formulario_registro(request: Request, error: str | None = None):
-    return plantillas.TemplateResponse(request, "registro.html", {"error": error, "centrar": True})
+    return plantillas.TemplateResponse(request, "registro.html", {"error": error})
 
 
 @app.post("/registro")
@@ -110,7 +110,7 @@ def procesar_registro(
         return plantillas.TemplateResponse(
             request,
             "registro.html",
-            {"error": "Las contraseñas no coinciden", "centrar": True},
+            {"error": "Las contraseñas no coinciden"},
             status_code=400,
         )
 
@@ -120,7 +120,7 @@ def procesar_registro(
         return plantillas.TemplateResponse(
             request,
             "registro.html",
-            {"error": str(error), "centrar": True},
+            {"error": str(error)},
             status_code=400,
         )
 
@@ -150,7 +150,7 @@ def procesar_registro(
             return plantillas.TemplateResponse(
                 request,
                 "registro.html",
-                {"error": "Ya existe una cuenta con ese correo", "centrar": True},
+                {"error": "Ya existe una cuenta con ese correo"},
                 status_code=409,
             )
         finally:
@@ -166,7 +166,7 @@ def procesar_registro(
 
 @app.get("/login")
 def formulario_login(request: Request, error: str | None = None):
-    return plantillas.TemplateResponse(request, "login.html", {"error": error, "centrar": True})
+    return plantillas.TemplateResponse(request, "login.html", {"error": error})
 
 
 @app.post("/login")
@@ -188,7 +188,7 @@ def procesar_login(request: Request, email: str = Form(...), password: str = For
         return plantillas.TemplateResponse(
             request,
             "login.html",
-            {"error": "Correo o contraseña incorrectos", "centrar": True},
+            {"error": "Correo o contraseña incorrectos"},
             status_code=401,
         )
 
