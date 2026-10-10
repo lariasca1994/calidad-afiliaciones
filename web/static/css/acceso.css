@@ -1,0 +1,508 @@
+/* Portada de acceso (inicio de sesión y registro).
+   Identidad propia: naranja MySQL sobre tonos cálidos en tema claro y
+   pizarra en tema oscuro; el motivo son los tres canales de afiliación
+   que convergen en un único registro por afiliado. */
+
+:root {
+  --acento: #F29111;
+  --acento-fuerte: #D97D0A;
+  --acento-suave: rgba(242, 145, 17, 0.14);
+  --enlace: #B45309;
+
+  --fondo: #FAF8F5;
+  --superficie: #FFFFFF;
+  --borde: #E7E1D8;
+  --borde-fuerte: #D6CDBF;
+  --texto: #1C1917;
+  --texto-suave: #6B635A;
+
+  --marca-fondo: #FFF3E2;
+  --marca-brillo: rgba(242, 145, 17, 0.22);
+  --marca-texto: #1C1917;
+  --marca-suave: #7A6A57;
+  --marca-regla: rgba(146, 64, 14, 0.10);
+  --marca-linea: rgba(146, 64, 14, 0.32);
+  --marca-dup: #B8A99A;
+
+  --error-fondo: #FFF1F2;
+  --error-texto: #BE123C;
+  --sombra: 0 1px 2px rgba(28, 25, 23, 0.05), 0 18px 40px -18px rgba(120, 53, 15, 0.28);
+}
+
+[data-tema="oscuro"] {
+  --acento-suave: rgba(242, 145, 17, 0.18);
+  --enlace: #FCB65C;
+
+  --fondo: #020617;
+  --superficie: #0F172A;
+  --borde: #1E293B;
+  --borde-fuerte: #334155;
+  --texto: #F1F5F9;
+  --texto-suave: #94A3B8;
+
+  --marca-fondo: #0B1120;
+  --marca-brillo: rgba(242, 145, 17, 0.20);
+  --marca-texto: #F8FAFC;
+  --marca-suave: #94A3B8;
+  --marca-regla: rgba(148, 163, 184, 0.08);
+  --marca-linea: rgba(252, 182, 92, 0.38);
+  --marca-dup: #475569;
+
+  --error-fondo: rgba(190, 18, 60, 0.16);
+  --error-texto: #FDA4AF;
+  --sombra: 0 1px 2px rgba(0, 0, 0, 0.4), 0 18px 40px -18px rgba(0, 0, 0, 0.7);
+  color-scheme: dark;
+}
+
+body.acceso {
+  margin: 0;
+  background: var(--fondo);
+  color: var(--texto);
+  -webkit-font-smoothing: antialiased;
+}
+
+.portada {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(420px, 1fr);
+  min-height: 100vh;
+}
+
+/* ───── Panel de marca ───── */
+.marca {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 2.5rem;
+  overflow: hidden;
+  padding: 2.5rem clamp(1.75rem, 5vw, 4.5rem);
+  background:
+    radial-gradient(90% 70% at 100% 100%, var(--marca-brillo) 0%, transparent 60%),
+    var(--marca-fondo);
+  color: var(--marca-texto);
+  isolation: isolate;
+}
+
+/* Renglones de hoja de cálculo que se desvanecen: los datos de origen
+   llegan como archivos planos. */
+.marca::before {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background-image:
+    repeating-linear-gradient(to bottom, transparent 0 27px, var(--marca-regla) 27px 28px),
+    repeating-linear-gradient(to right, transparent 0 139px, var(--marca-regla) 139px 140px);
+  mask-image: linear-gradient(115deg, #000 10%, transparent 70%);
+  -webkit-mask-image: linear-gradient(115deg, #000 10%, transparent 70%);
+  content: "";
+}
+
+.marca-logo {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  color: inherit;
+  font-weight: 700;
+  font-size: 1.05rem;
+  text-decoration: none;
+}
+
+.marca-logo img {
+  width: 2rem;
+  height: 2rem;
+}
+
+.marca-logo small {
+  padding: 0.15rem 0.5rem;
+  border: 1px solid var(--marca-linea);
+  border-radius: 999px;
+  color: var(--marca-suave);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.marca-mensaje {
+  max-width: 34rem;
+}
+
+.marca-etiqueta {
+  margin: 0 0 1rem;
+  color: var(--enlace);
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.marca-titular {
+  margin: 0 0 1rem;
+  font-size: clamp(2rem, 3.6vw, 3rem);
+  font-weight: 800;
+  line-height: 1.08;
+  letter-spacing: -0.035em;
+}
+
+/* Resaltado tipo marcador, como quien subraya la cifra buena en un reporte. */
+.marca-titular mark {
+  padding: 0 0.12em;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  background: linear-gradient(to top, var(--acento) 0 0.32em, transparent 0.32em);
+  color: inherit;
+}
+
+.marca-bajada {
+  margin: 0 0 1.75rem;
+  color: var(--marca-suave);
+  font-size: 1rem;
+  line-height: 1.6;
+}
+
+/* Motivo: tres canales que convergen en un registro único. */
+.flujo {
+  display: block;
+  width: 100%;
+  max-width: 30rem;
+  height: auto;
+  overflow: visible;
+}
+
+.flujo-canal {
+  fill: none;
+  stroke: var(--marca-linea);
+  stroke-width: 2;
+  stroke-dasharray: 4 6;
+}
+
+.flujo-salida {
+  fill: none;
+  stroke: var(--acento);
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+
+.flujo-origen {
+  fill: var(--marca-fondo);
+  stroke: var(--marca-linea);
+  stroke-width: 2;
+}
+
+.flujo-nombre,
+.flujo-leyenda {
+  fill: var(--marca-suave);
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+}
+
+.flujo-leyenda {
+  fill: var(--marca-texto);
+  font-weight: 600;
+}
+
+.flujo-nodo {
+  fill: var(--acento);
+}
+
+.flujo-nodo-anillo {
+  fill: none;
+  stroke: var(--acento);
+  stroke-width: 2;
+  opacity: 0.35;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: anillo 2.6s ease-out infinite;
+}
+
+.flujo-dato {
+  fill: var(--acento);
+}
+
+.flujo-dato--dup {
+  fill: var(--marca-dup);
+}
+
+@keyframes anillo {
+  from { transform: scale(0.7); opacity: 0.5; }
+  to { transform: scale(1.6); opacity: 0; }
+}
+
+.pasos {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+  margin: 1.75rem 0 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: paso;
+}
+
+.pasos li {
+  padding-top: 0.75rem;
+  border-top: 2px solid var(--marca-linea);
+  color: var(--marca-suave);
+  font-size: 0.8rem;
+  line-height: 1.45;
+  counter-increment: paso;
+}
+
+.pasos li::before {
+  display: block;
+  margin-bottom: 0.3rem;
+  color: var(--enlace);
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 0.72rem;
+  font-weight: 700;
+  content: "0" counter(paso);
+}
+
+.pasos strong {
+  display: block;
+  color: var(--marca-texto);
+  font-size: 0.9rem;
+}
+
+.marca-pie {
+  margin: 0;
+  color: var(--marca-suave);
+  font-size: 0.75rem;
+}
+
+/* ───── Lado del formulario ───── */
+.lado {
+  position: relative;
+  display: grid;
+  place-items: center;
+  padding: 5rem 1.5rem 3rem;
+}
+
+.lado-barra {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  left: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.volver {
+  color: var(--texto-suave);
+  font-size: 0.85rem;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.volver:hover {
+  color: var(--enlace);
+}
+
+.acceso .boton-tema {
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 1px solid var(--borde);
+  border-radius: 999px;
+  background: var(--superficie);
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.acceso .boton-tema:hover {
+  border-color: var(--acento);
+}
+
+.tarjeta {
+  width: 100%;
+  max-width: 26rem;
+  padding: clamp(1.5rem, 4vw, 2.25rem);
+  border: 1px solid var(--borde);
+  border-top: 4px solid var(--acento);
+  border-radius: 1rem;
+  background: var(--superficie);
+  box-shadow: var(--sombra);
+}
+
+.tarjeta-paso {
+  margin: 0 0 0.4rem;
+  color: var(--enlace);
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.tarjeta-titulo {
+  margin: 0 0 0.4rem;
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.tarjeta-subtitulo {
+  margin: 0 0 1.5rem;
+  color: var(--texto-suave);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.formulario {
+  display: grid;
+  gap: 1rem;
+}
+
+.campo label {
+  display: block;
+  margin-bottom: 0.35rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.campo input {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 0.65rem 0.8rem;
+  border: 1px solid var(--borde-fuerte);
+  border-radius: 0.6rem;
+  background: var(--fondo);
+  color: var(--texto);
+  font: inherit;
+  font-size: 0.95rem;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.campo input:focus {
+  border-color: var(--acento);
+  outline: none;
+  box-shadow: 0 0 0 3px var(--acento-suave);
+}
+
+.boton {
+  width: 100%;
+  margin-top: 0.25rem;
+  padding: 0.75rem 1rem;
+  border: 0;
+  border-radius: 0.6rem;
+  background: var(--acento);
+  color: #FFFFFF;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.boton:hover {
+  background: var(--acento-fuerte);
+}
+
+.boton:focus-visible {
+  outline: 3px solid var(--acento-suave);
+  outline-offset: 2px;
+}
+
+.alerta {
+  margin-bottom: 1rem;
+  padding: 0.65rem 0.8rem;
+  border-radius: 0.6rem;
+  background: var(--error-fondo);
+  color: var(--error-texto);
+  font-size: 0.85rem;
+}
+
+.alterno {
+  margin: 1.5rem 0 0;
+  color: var(--texto-suave);
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+.alterno a {
+  color: var(--enlace);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.alterno a:hover {
+  text-decoration: underline;
+}
+
+.nota {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin: 1.5rem 0 0;
+  padding-top: 1rem;
+  border-top: 1px dashed var(--borde);
+  color: var(--texto-suave);
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+/* ───── Responsive ───── */
+@media (max-width: 960px) {
+  .portada {
+    grid-template-columns: 1fr;
+  }
+
+  .marca {
+    gap: 1.25rem;
+    padding: 1.5rem 1.25rem 3.5rem;
+  }
+
+  .marca-bajada,
+  .flujo,
+  .pasos,
+  .marca-pie {
+    display: none;
+  }
+
+  .marca-titular {
+    margin: 0;
+    font-size: 1.75rem;
+  }
+
+  /* La tarjeta monta sobre el panel de marca; el botón de tema sube a
+     la esquina de la pantalla y el logo hace de enlace "volver". */
+  .portada {
+    position: relative;
+  }
+
+  .lado {
+    position: static;
+    place-items: start center;
+    margin-top: -2rem;
+    padding: 0 1rem 3rem;
+  }
+
+  .lado-barra {
+    top: 1.25rem;
+    left: auto;
+  }
+
+  /* El panel de marca está posicionado; sin esto taparía el borde
+     superior de la tarjeta que se monta encima. */
+  .tarjeta {
+    position: relative;
+    z-index: 1;
+  }
+
+  .volver {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flujo-nodo-anillo {
+    animation: none;
+  }
+
+  .flujo-dato {
+    display: none;
+  }
+}

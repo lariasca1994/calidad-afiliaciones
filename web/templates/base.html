@@ -4,6 +4,10 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>{% block titulo %}Calidad de Afiliaciones{% endblock %}</title>
+    <link rel="icon" href="/static/iconos/icono.svg" type="image/svg+xml" />
+    <link rel="icon" href="/favicon.ico" sizes="48x48" />
+    <link rel="apple-touch-icon" href="/static/iconos/apple-touch-icon.png" />
+    <meta name="theme-color" content="#F29111" />
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         // Naranja "MySQL" (#F29111, el de su wordmark) como acento de todo
@@ -33,11 +37,13 @@
             } catch (e) {}
         })();
     </script>
+    {% block cabeza %}{% endblock %}
 </head>
-<body class="min-h-full bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 antialiased">
+<body class="{% block clase_body %}min-h-full bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 antialiased{% endblock %}">
+    {% block cuerpo %}
     <nav class="bg-slate-900 dark:bg-slate-900 text-white px-6 py-3 flex items-center justify-between">
         <a href="/" class="font-semibold flex items-center gap-2">
-            🐬 Calidad de Afiliaciones
+            <img src="/static/iconos/icono.svg" alt="" class="w-6 h-6" /> Calidad de Afiliaciones
         </a>
         <div class="flex items-center gap-5 text-sm">
             {% if email %}
@@ -62,6 +68,7 @@
     <main class="{% if centrar %}min-h-[80vh] flex items-center justify-center px-6 py-12{% else %}max-w-6xl mx-auto px-6 py-10{% endif %}">
         {% block contenido %}{% endblock %}
     </main>
+    {% endblock %}
 
     <script src="/static/js/tema.js" defer></script>
 </body>
