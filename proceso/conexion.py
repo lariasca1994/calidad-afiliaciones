@@ -68,8 +68,15 @@ def _leer_configuracion() -> dict:
     return config
 
 
-def conectar():
+class BaseNoDisponible(Exception):
+    """La base no respondió (apagada, sin red o credenciales inválidas)."""
+
+
+def conectar(salir: bool = True):
     """Devuelve una conexión abierta, o termina con un mensaje útil.
+
+    Con salir=False (uso desde la web) no termina el proceso: lanza
+    BaseNoDisponible y el panel muestra la página de mantenimiento.
 
     Si el .env tiene configurado el encendido automático (ver
     aiven_control.py), primero verifica que el servicio esté activo. Es
@@ -92,6 +99,8 @@ def conectar():
         print("  1. Que el servicio esté encendido en el panel del proveedor")
         print("  2. Que tu IP esté autorizada en las reglas de red")
         print("  3. Que usuario y contraseña del .env sean correctos")
+        if not salir:
+            raise BaseNoDisponible(str(error)) from error
         sys.exit(1)
 
     return conexion

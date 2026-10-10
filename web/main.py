@@ -13,7 +13,7 @@ from fastapi.templating import Jinja2Templates
 
 from generador import datos_demo
 from proceso import analisis, esquema, pipeline
-from proceso.conexion import conectar
+from proceso.conexion import BaseNoDisponible, conectar
 from proceso.fuentes import FUENTES
 from web.seguridad import (
     NOMBRE_COOKIE,
@@ -27,6 +27,14 @@ from web.seguridad import (
 app = FastAPI(title="Calidad de Afiliaciones")
 app.mount("/static", StaticFiles(directory="web/static"), name="static")
 plantillas = Jinja2Templates(directory="web/templates")
+
+
+@app.exception_handler(BaseNoDisponible)
+def base_no_disponible(request: Request, _error: BaseNoDisponible):
+    """Base apagada o sin conexión: página de mantenimiento (503), no un error genérico."""
+    return plantillas.TemplateResponse(
+        request, "mantenimiento.html", status_code=503, headers={"Retry-After": "3600"}
+    )
 
 RAIZ = Path(__file__).resolve().parent.parent
 
@@ -127,7 +135,7 @@ def procesar_registro(
             status_code=400,
         )
 
-    conexion = conectar()
+    conexion = conectar(salir=False)
     try:
         # La tabla `usuarios` la crea normalmente scripts/crear_admin.py,
         # pero con registro público el primer visitante puede llegar antes
@@ -176,7 +184,7 @@ def formulario_login(request: Request, error: str | None = None):
 def procesar_login(request: Request, email: str = Form(...), password: str = Form(...)):
     email_normalizado = email.strip().lower()
 
-    conexion = conectar()
+    conexion = conectar(salir=False)
     try:
         cursor = conexion.cursor()
         cursor.execute(
@@ -211,7 +219,7 @@ def logout():
 
 @app.get("/tablero")
 def tablero(request: Request, sesion: dict = Depends(requiere_sesion), error: str | None = None):
-    conexion = conectar()
+    conexion = conectar(salir=False)
     try:
         secciones = {}
         for clave, consulta in analisis.CONSULTAS.items():
@@ -250,7 +258,7 @@ def generar_demo(sesion: dict = Depends(requiere_sesion)):
     semilla = random.randint(1, 1_000_000)
     datos_demo.generar(escala=ESCALA_DEMO_WEB, semilla=semilla, carpeta=carpeta)
 
-    conexion = conectar()
+    conexion = conectar(salir=False)
     try:
         pipeline.ejecutar(conexion, carpeta, usuario_id)
     finally:
@@ -310,7 +318,7 @@ async def cargar_propios(
     for nombre, cuerpo in contenidos.items():
         (carpeta / nombre).write_bytes(cuerpo)
 
-    conexion = conectar()
+    conexion = conectar(salir=False)
     try:
         pipeline.ejecutar(conexion, carpeta, usuario_id)
     finally:
@@ -327,7 +335,7 @@ def exportar_consolidado(sesion: dict = Depends(requiere_sesion)):
     usuario_id = sesion["usuario_id"]
     carpeta = CARPETA_SALIDA_USUARIOS / str(usuario_id)
 
-    conexion = conectar()
+    conexion = conectar(salir=False)
     try:
         analisis.exportar(conexion, carpeta, usuario_id)
     finally:
