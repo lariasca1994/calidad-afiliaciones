@@ -84,8 +84,11 @@ def favicon():
 
 @app.get("/")
 def inicio(request: Request, sesion: dict | None = Depends(sesion_opcional)):
-    email = sesion["email"] if sesion else None
-    return plantillas.TemplateResponse(request, "inicio.html", {"email": email})
+    # La portada de acceso es la primera pantalla; con sesión abierta se
+    # va directo al tablero.
+    if sesion:
+        return RedirectResponse(url="/tablero", status_code=303)
+    return plantillas.TemplateResponse(request, "login.html", {"error": None})
 
 
 @app.get("/registro")
