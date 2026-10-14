@@ -1,115 +1,276 @@
 {% extends "base.html" %}
 {% block titulo %}Tablero — Calidad de Afiliaciones{% endblock %}
+{% block ancho %}max-w-7xl{% endblock %}
+{% block cabeza %}
+<link rel="stylesheet" href="/static/css/tablero.css" />
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>
+<script src="/static/js/tablero.js" defer></script>
+{% endblock %}
 {% block contenido %}
-{% set titulos = {
-    "tablero": "Cifras principales",
-    "clasificacion": "Clasificación del trámite",
-    "fuentes": "Aporte y depuración por fuente",
-    "calidad": "Calidad por fuente (%)",
-    "sin_homologar": "Tipos de documento fuera de catálogo",
-} %}
+<div class="tablero">
 
-<div class="flex flex-wrap items-center justify-between gap-4 mb-6">
-    <h1 class="text-2xl font-bold">Tablero de indicadores</h1>
-    <div class="flex flex-wrap gap-2">
+<header class="tb-encabezado">
+    <div>
+        <p class="tb-etiqueta">Informe de calidad · afiliaciones multicanal</p>
+        <h1 class="tb-titulo">Tablero de indicadores</h1>
+        <p class="tb-subtitulo">
+            Cuántas afiliaciones reales hubo, por dónde llegaron y qué tan
+            confiables son los datos. Toca el <strong>?</strong> de cualquier
+            indicador para ver qué significa.
+        </p>
+    </div>
+    <div class="tb-acciones">
+        {# El texto "Generar datos de ejemplo" lo usa la prueba E2E de qa-evidencia. #}
         <form action="/tablero/generar-demo" method="post">
-            <button type="submit" onclick="return iniciarGeneracion(this)"
-                    class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white bg-mysql hover:bg-mysql-dark transition-colors">
-                🎲 Generar datos de ejemplo
-            </button>
+            <button type="submit" class="tb-boton" onclick="return iniciarGeneracion(this)">🎲 Generar datos de ejemplo</button>
         </form>
-        <button type="button" onclick="document.getElementById('form-cargar-propios').classList.toggle('hidden')"
-                class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-mysql border border-mysql hover:bg-mysql/10 transition-colors">
+        <button type="button" class="tb-boton tb-boton--secundario"
+                onclick="document.getElementById('form-cargar-propios').hidden = !document.getElementById('form-cargar-propios').hidden">
             📁 Subir mis archivos
         </button>
-        <a href="/tablero/exportar"
-           class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white bg-mysql hover:bg-mysql-dark transition-colors">
-            ⬇ Exportar CSV
-        </a>
+        {% if hay_datos %}
+        <a href="/tablero/exportar-excel" class="tb-boton tb-boton--secundario"
+           title="Libro de Excel con modelo de datos, medidas DAX y tablas dinámicas">📊 Excel con tablas dinámicas</a>
+        <a href="/tablero/exportar" class="tb-boton tb-boton--secundario" title="Archivo plano, sin medidas ni tablas dinámicas">⬇ CSV</a>
+        {% endif %}
     </div>
-</div>
+</header>
 
 {% if error %}
-<div class="mb-6 p-4 rounded-lg bg-rose-50 dark:bg-rose-900/30 text-rose-600 dark:text-rose-300 text-sm">
-    {{ error }}
-</div>
+<div class="tb-aviso" role="alert">{{ error }}</div>
 {% endif %}
 
 <form id="form-cargar-propios" action="/tablero/cargar-propios" method="post" enctype="multipart/form-data"
-      class="hidden mb-8 p-4 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-3">
-    <p class="text-sm font-semibold">Subir tus propios archivos</p>
-    <p class="text-sm text-slate-500 dark:text-slate-400">
-        Selecciona los 6 archivos exactos que espera el proyecto (deben
-        conservar su nombre original: <code>AFILIACIONES.csv</code>,
-        <code>DIGITAL.csv</code>, <code>SAT.csv</code>,
-        <code>PROCESO_IRL.csv</code>, <code>XML.csv</code> y
-        <code>HOMOLOGACION_DOCUMENTOS.csv</code>). Reemplazan cualquier
-        dato de ejemplo que ya tuvieras en esta cuenta.
-    </p>
-    <input type="file" name="archivos" multiple required accept=".csv"
-           class="block w-full text-sm file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-mysql file:text-white hover:file:bg-mysql-dark" />
-    <button type="submit" onclick="return iniciarGeneracion(this)"
-            class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white bg-mysql hover:bg-mysql-dark transition-colors">
-        Subir y procesar
-    </button>
+      class="tb-tarjeta tb-carga" hidden>
+    <p><strong>Subir tus propios archivos.</strong> Selecciona los 6 archivos que espera el proyecto, con su
+        nombre original: <code>AFILIACIONES.csv</code>, <code>DIGITAL.csv</code>, <code>SAT.csv</code>,
+        <code>PROCESO_IRL.csv</code>, <code>XML.csv</code> y <code>HOMOLOGACION_DOCUMENTOS.csv</code>.
+        Reemplazan los datos de ejemplo de tu cuenta.</p>
+    <input type="file" name="archivos" multiple required accept=".csv" />
+    <button type="submit" class="tb-boton" onclick="return iniciarGeneracion(this)">Subir y procesar</button>
 </form>
 
-<div class="mb-8 p-4 rounded-lg bg-mysql-light/20 dark:bg-mysql-dark/20 border border-mysql/30 text-sm space-y-2">
-    <p class="font-semibold">Cómo leer estos indicadores</p>
-    <p><strong>Duplicidad multicanal vs. interna:</strong> la multicanal cuenta un mismo trámite recibido por más de un canal (correo, presencial, web...); la interna cuenta repeticiones dentro del mismo canal. Distinguirlas importa porque se depuran de forma distinta.</p>
-    <p><strong>Territorio y fecha incompletos</strong> no siempre son un error de captura — pueden reflejar trámites aún en curso o canales que no piden ese dato. Vale la pena mirarlos junto con "registros críticos" antes de concluir nada.</p>
-    <p><strong>Tipos de documento fuera de catálogo</strong> ("sin homologar") es en general el hallazgo más accionable: casi siempre se corrige agregando la equivalencia al catálogo de homologación, no depurando datos.</p>
-</div>
+{% if not hay_datos %}
+<section class="tb-tarjeta tb-vacio">
+    <h2>Tu tablero todavía no tiene datos</h2>
+    <p>
+        Pulsa <strong>Generar datos de ejemplo</strong>: se crean las seis fuentes de una EPS ficticia
+        (con sus errores típicos), pasan por todo el proceso de depuración y en unos segundos verás
+        aquí el informe. Cada generación simula un periodo distinto.
+    </p>
+    {# Otro texto a propósito: la prueba E2E busca un único botón "Generar datos de ejemplo". #}
+    <form action="/tablero/generar-demo" method="post">
+        <button type="submit" class="tb-boton" onclick="return iniciarGeneracion(this)">🎲 Crear mi primer informe</button>
+    </form>
+</section>
+{% else %}
 
-{% for clave, seccion in secciones.items() %}
-<div class="mb-10">
-    <h2 class="font-semibold text-lg mb-3">{{ titulos.get(clave, clave) }}</h2>
-    {% if not seccion.filas %}
-    <p class="text-slate-500 dark:text-slate-400 text-sm">Sin resultados — usa el botón "Generar datos de ejemplo", sube tus propios archivos con "Subir mis archivos", o carga los tuyos con <code>python setup.py</code> desde la terminal.</p>
-    {% else %}
-    <div class="overflow-x-auto bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg">
-        <table class="w-full text-sm">
-            <thead class="bg-slate-100 dark:bg-slate-800">
-                <tr>
-                    {% for col in seccion.columnas %}
-                    <th class="text-left px-4 py-2 whitespace-nowrap">{{ col }}</th>
-                    {% endfor %}
-                </tr>
-            </thead>
-            <tbody>
-                {% for fila in seccion.filas %}
-                <tr class="border-t border-slate-100 dark:border-slate-800">
-                    {% for col in seccion.columnas %}
-                    <td class="px-4 py-2 whitespace-nowrap">
-                        {%- if fila[col] is none -%}
-                            <span class="text-slate-400">—</span>
-                        {%- elif "pct" in col or col in ("porcentaje", "homologacion", "territorio", "fecha_valida", "participacion", "acumulado") -%}
-                            {{ "%.2f"|format(fila[col]|float) }}%
-                        {%- else -%}
-                            {{ fila[col] }}
-                        {%- endif -%}
-                    </td>
-                    {% endfor %}
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+{% if escenario %}
+<section class="tb-tarjeta tb-escenario" aria-label="Escenario de los datos de ejemplo">
+    <span class="tb-escenario-icono" aria-hidden="true">🧪</span>
+    <p><strong>Datos de ejemplo · Escenario «{{ escenario.nombre }}».</strong> {{ escenario.descripcion }}</p>
+    <div>
+        <div class="tb-chips">
+            <span class="tb-chip">Periodo <strong>{{ escenario.periodo }}</strong></span>
+            <span class="tb-chip">Volumen digital <strong>×{{ escenario.volumen.digital }}</strong></span>
+            <span class="tb-chip">Físico <strong>×{{ escenario.volumen.afiliaciones }}</strong></span>
+            <span class="tb-chip">SAT <strong>×{{ escenario.volumen.sat }}</strong></span>
+            <span class="tb-chip">Rechazos <strong>×{{ escenario.factor_rechazos }}</strong></span>
+        </div>
     </div>
-    {% endif %}
+</section>
+{% endif %}
+
+<nav class="tb-barra" aria-label="Secciones y filtro del tablero">
+    <div class="tb-secciones">
+        <a href="#resumen">Resumen</a>
+        <a href="#origen">Origen de datos</a>
+        <a href="#tiempo">En el tiempo</a>
+        <a href="#canales">Canales</a>
+        <a href="#calidad">Calidad</a>
+        <a href="#territorio">Territorio</a>
+        <a href="#glosario">Glosario</a>
+    </div>
+    <div class="tb-filtro">
+        <span>Ver canal</span>
+        <div class="tb-segmentos" role="group" aria-label="Filtrar por canal" id="filtro-canal">
+            <button type="button" data-canal="" aria-pressed="true">Todos</button>
+            <button type="button" data-canal="DIGITAL" aria-pressed="false">Digital</button>
+            <button type="button" data-canal="AFILIACIONES" aria-pressed="false">Físico</button>
+            <button type="button" data-canal="SAT" aria-pressed="false">SAT</button>
+        </div>
+    </div>
+</nav>
+
+<section class="tb-seccion" id="resumen">
+    <div class="tb-seccion-cabecera">
+        <div>
+            <h2>Resumen ejecutivo</h2>
+            <p class="tb-seccion-nota" id="nota-filtro">Todos los canales.</p>
+        </div>
+    </div>
+    <div class="tb-kpis" id="kpis"></div>
+    <h3 class="tb-seccion-nota" style="margin:1.25rem 0 .5rem;font-weight:800;color:var(--t-texto)">Lo más importante</h3>
+    <ul class="tb-tarjeta tb-hallazgos" id="hallazgos"></ul>
+</section>
+
+<section class="tb-seccion" id="origen">
+    <div class="tb-seccion-cabecera">
+        <div>
+            <h2>De dónde salen los datos</h2>
+            <p class="tb-seccion-nota">Seis archivos que no hablan entre sí se cruzan y depuran hasta quedar en una sola cifra.</p>
+        </div>
+    </div>
+    <details class="tb-ayuda">
+        <summary>¿Cómo leer esto?</summary>
+        <div>
+            <p>A la izquierda, lo que llegó en cada archivo, tal cual. Los tres canales (digital, físico y SAT) son los trámites de afiliación; el histórico y las novedades laborales sirven de contexto, y el catálogo traduce los tipos de documento.</p>
+            <p>En el centro, los pasos del proceso. A la derecha, el consolidado: <strong>una fila por afiliado</strong>. Abajo, el embudo muestra cuánto se descartó en cada paso.</p>
+        </div>
+    </details>
+    <div class="tb-tarjeta">
+        <div class="tb-linaje">
+            <div class="tb-fuentes" id="fuentes-origen"></div>
+            <span class="tb-flecha" aria-hidden="true">→</span>
+            <ol class="tb-pasos">
+                <li><span>Carga en MySQL<small>Los archivos entran tal cual, como texto</small></span></li>
+                <li><span>Homologación<small>Una llave tipo + número para todos los canales</small></span></li>
+                <li><span>Antecedente histórico<small>Afiliación nueva, traslado o reinscripción</small></span></li>
+                <li><span>Depuración<small>Un registro por afiliado, por prioridad de canal</small></span></li>
+                <li><span>Marcas de calidad<small>Duplicados, documento, territorio, fecha</small></span></li>
+            </ol>
+            <span class="tb-flecha" aria-hidden="true">→</span>
+            <div class="tb-resultado" id="resultado-origen"></div>
+        </div>
+        <div class="tb-embudo" id="embudo"></div>
+    </div>
+</section>
+
+<section class="tb-seccion" id="tiempo">
+    <div class="tb-seccion-cabecera">
+        <div>
+            <h2>Producción en el tiempo</h2>
+            <p class="tb-seccion-nota">Trámites consolidados por mes de radicación.</p>
+        </div>
+    </div>
+    <details class="tb-ayuda">
+        <summary>¿Cómo leer esto?</summary>
+        <div>
+            <p>La línea naranja son todos los trámites del mes; la verde, los que sí quedaron radicados (producción efectiva). La distancia entre ambas son anulados, rechazados o sin prerradicar.</p>
+            <p>Las barras grises son los trámites marcados como duplicados. Toca un nombre de la leyenda para ocultar o mostrar esa serie.</p>
+        </div>
+    </details>
+    <div class="tb-tarjeta tb-grafico">
+        <div class="tb-lienzo"><canvas id="grafico-tendencia" aria-label="Trámites por mes"></canvas></div>
+        <p class="tb-seccion-nota" id="nota-tendencia" hidden style="margin:.75rem 0 0"></p>
+    </div>
+</section>
+
+<section class="tb-seccion" id="canales">
+    <div class="tb-seccion-cabecera">
+        <div>
+            <h2>Canales y tipo de trámite</h2>
+            <p class="tb-seccion-nota">Qué aportó cada canal y qué clase de afiliación representan.</p>
+        </div>
+    </div>
+    <details class="tb-ayuda">
+        <summary>¿Cómo leer esto?</summary>
+        <div>
+            <p><strong>Aporte y depuración:</strong> cada barra es un canal. La parte de color es lo que quedó en el consolidado; la parte gris, lo que se descartó por estar repetido.</p>
+            <p><strong>Tipo de trámite:</strong> con el histórico se sabe si la persona ya estuvo afiliada (reinscripción), venía de otra entidad (traslado) o es nueva.</p>
+        </div>
+    </details>
+    <div class="tb-rejilla tb-rejilla--ancha">
+        <article class="tb-tarjeta tb-grafico">
+            <h3>Aporte y depuración por canal</h3>
+            <p>Registros que llegaron vs. registros que quedaron.</p>
+            <div class="tb-lienzo"><canvas id="grafico-fuentes"></canvas></div>
+        </article>
+        <article class="tb-tarjeta tb-grafico">
+            <h3>Tipo de trámite</h3>
+            <p id="nota-clasificacion">Consolidado, según el filtro de canal.</p>
+            <div class="tb-lienzo"><canvas id="grafico-clasificacion"></canvas></div>
+        </article>
+    </div>
+    <div class="tb-rejilla" style="margin-top:.75rem">
+        <article class="tb-tarjeta tb-grafico">
+            <h3>Estado del trámite</h3>
+            <p>En verde lo radicado (producción efectiva); en ámbar, lo que no llegó a radicarse. Físico y SAT solo reciben trámites ya radicados.</p>
+            <div class="tb-lienzo tb-lienzo--bajo"><canvas id="grafico-estados"></canvas></div>
+        </article>
+        <article class="tb-tarjeta tb-grafico">
+            <h3>Régimen</h3>
+            <p>Contributivo (con empleador o independiente) frente a subsidiado.</p>
+            <div class="tb-lienzo tb-lienzo--bajo"><canvas id="grafico-regimen"></canvas></div>
+        </article>
+    </div>
+</section>
+
+<section class="tb-seccion" id="calidad">
+    <div class="tb-seccion-cabecera">
+        <div>
+            <h2>Calidad por fuente</h2>
+            <p class="tb-seccion-nota">Porcentaje de registros con cada dato completo y válido, antes de depurar.</p>
+        </div>
+    </div>
+    <details class="tb-ayuda">
+        <summary>¿Cómo leer esto?</summary>
+        <div>
+            <p>Verde es bueno (95 % o más), ámbar pide revisión y rojo es un problema. <strong>Homologación</strong>: el tipo de documento existe en el catálogo. <strong>Territorio</strong>: trae departamento y municipio. <strong>Fecha válida</strong>: trae fecha de radicación.</p>
+            <p>Una fecha faltante no siempre es error: los trámites anulados o sin prerradicar no la tienen. Los tipos de documento fuera de catálogo casi siempre se corrigen agregando la equivalencia al catálogo.</p>
+        </div>
+    </details>
+    <div class="tb-rejilla">
+        <article class="tb-tarjeta tb-grafico">
+            <h3>Semáforo de calidad</h3>
+            <p>Por canal de origen.</p>
+            <div class="tb-desplazable"><table class="tb-tabla-calor" id="tabla-calidad"></table></div>
+        </article>
+        <article class="tb-tarjeta tb-grafico">
+            <h3>Tipos de documento fuera de catálogo</h3>
+            <p>Lo que llegó y el catálogo no reconoce.</p>
+            <div class="tb-desplazable"><table class="tb-tabla-simple" id="tabla-sin-homologar"></table></div>
+        </article>
+    </div>
+</section>
+
+<section class="tb-seccion" id="territorio">
+    <div class="tb-seccion-cabecera">
+        <div>
+            <h2>Distribución territorial</h2>
+            <p class="tb-seccion-nota">Departamentos con más trámites consolidados.</p>
+        </div>
+    </div>
+    <div class="tb-tarjeta tb-grafico">
+        <div class="tb-lienzo"><canvas id="grafico-territorio"></canvas></div>
+    </div>
+</section>
+
+<section class="tb-seccion" id="glosario">
+    <div class="tb-seccion-cabecera"><h2>Glosario</h2></div>
+    <div class="tb-glosario">
+        <dl class="tb-tarjeta"><dt>Producción consolidada</dt><dd>Afiliaciones únicas: una por persona, aunque haya llegado por varios canales o varias veces.</dd></dl>
+        <dl class="tb-tarjeta"><dt>Producción efectiva</dt><dd>La parte del consolidado que quedó radicada. Lo anulado, rechazado o sin prerradicar no cuenta.</dd></dl>
+        <dl class="tb-tarjeta"><dt>Duplicidad multicanal</dt><dd>La misma persona radicó por más de un canal (por ejemplo, digital y físico).</dd></dl>
+        <dl class="tb-tarjeta"><dt>Duplicidad interna</dt><dd>La misma persona aparece varias veces en un mismo canal.</dd></dl>
+        <dl class="tb-tarjeta"><dt>Homologación</dt><dd>Traducir los tipos de documento de cada canal (CC, 3…) a un solo código común.</dd></dl>
+        <dl class="tb-tarjeta"><dt>Registro crítico</dt><dd>Un registro con un problema que impide contarlo con confianza, como documento vacío o fuera de catálogo.</dd></dl>
+    </div>
+</section>
+
+<script type="application/json" id="datos-tablero">{{ datos | tojson }}</script>
+{% endif %}
 </div>
-{% endfor %}
 
 <script>
 // Deshabilita el botón DESPUÉS de que el navegador ya inició el envío
 // del formulario. Si se deshabilita de forma síncrona dentro del propio
 // onclick del botón que disparó el clic, varios navegadores cancelan el
-// submit (el botón que originó la acción queda inhabilitado antes de
-// completarse su acción por defecto) y la petición nunca llega al
-// servidor, aunque el texto del botón sí cambie a "Generando…".
+// submit y la petición nunca llega al servidor.
 function iniciarGeneracion(boton) {
     setTimeout(function () {
         boton.disabled = true;
-        boton.textContent = 'Generando…';
+        boton.textContent = 'Procesando… (unos segundos)';
     }, 0);
     return true;
 }

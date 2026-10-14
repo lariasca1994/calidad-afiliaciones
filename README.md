@@ -117,7 +117,18 @@ proceso/
                              usado por el botón "Generar datos de ejemplo"
                              del panel web
 
-web/                        Panel web (ver más abajo)
+web/
+├── main.py                 Rutas del panel (FastAPI + Jinja2)
+├── tablero_datos.py        Consultas del tablero, agregadas por canal
+├── exportar_excel.py       Libro de Excel con modelo de datos y medidas DAX
+├── plantillas_excel/       Plantilla de ese libro (3 filas inventadas)
+├── templates/              Portada, tablero y demás páginas
+└── static/                 Estilos, gráficos (Chart.js) e íconos
+
+generador/datos_demo.py     Datos sintéticos; en el panel, un escenario distinto
+                             por generación
+scripts/construir_plantilla_excel.ps1
+                            Arma la plantilla de Excel con Excel de escritorio
 
 datos/entrada/              Archivos de origen (uso por consola) · excluidos
 datos/salida/               Consolidado exportado (uso por consola) · excluido
@@ -190,14 +201,16 @@ la otra, aunque generen "al mismo tiempo". Esto aplica igual en la instancia
 pública que en una corrida local.
 
 - **🎲 Generar datos de ejemplo:** genera un conjunto
-  sintético nuevo para la cuenta que inició sesión (semilla aleatoria en cada
-  clic) y recalcula su consolidado — el mismo camino que
-  `python generador/datos_demo.py && python setup.py`, pero acotado a esa
-  cuenta y sin salir del navegador ni tocar una terminal. Usa una escala más
-  pequeña que la que genera `python generador/datos_demo.py` por defecto
-  (pensada para verse en segundos, no para ser representativa de un volumen
-  real): sigue reproduciendo los mismos problemas de calidad, solo que con
-  menos filas.
+  sintético nuevo para la cuenta que inició sesión y recalcula su consolidado
+  — el mismo camino que `python generador/datos_demo.py && python setup.py`,
+  pero acotado a esa cuenta y sin salir del navegador ni tocar una terminal.
+  Cada clic sortea un **escenario** (*Operación estable*, *Campaña de
+  afiliación*, *Canal presencial fuerte*, *Cierre con rechazos* o *Migración
+  de sistema*) con su propio volumen por canal, periodo de 8 a 18 meses con
+  estacionalidad, duplicidad, rechazos, documentos fuera de catálogo y
+  territorios sin dato: el informe cambia de verdad entre una generación y
+  otra, no solo los números de documento. Usa una escala más pequeña que la
+  consola, pensada para verse en segundos.
 - **📁 Subir mis archivos:** si ya tienes tus propios archivos de origen, despliega
   un formulario para subir los 6 CSV directamente (deben conservar el nombre exacto
   que espera el proyecto — ver [Sobre los archivos de origen](#sobre-los-archivos-de-origen));
@@ -206,11 +219,40 @@ pública que en una corrida local.
 
 #### Leer el tablero
 
-El panel muestra los mismos cinco bloques de indicadores que el tablero de consola y
-Power Query, en una página con tema claro/oscuro, entre ellos producción consolidada,
-duplicidad, calidad por fuente y tendencia. La sección **Cómo leer estos indicadores** explica cada
-uno, por ejemplo la diferencia entre duplicidad multicanal e interna, los **tipos de
-documento fuera de catálogo** y el **territorio y fecha incompletos**.
+El tablero está pensado como un informe gerencial: se entiende a primera vista y
+cada parte explica cómo leerla. Tiene tema claro/oscuro y se adapta a celular.
+
+| Sección | Qué muestra |
+|---|---|
+| Resumen ejecutivo | Seis indicadores con semáforo y un **?** que explica cada uno: producción consolidada y efectiva, duplicidad multicanal e interna, calidad del dato, registros críticos |
+| Lo más importante | Hallazgos redactados a partir de los datos: canal dominante, registros descartados, mes pico, fuente con más problemas |
+| De dónde salen los datos | Las seis fuentes con sus filas, los pasos del proceso y el embudo recibidos → descartados → consolidado → efectiva |
+| Producción en el tiempo | Trámites, producción efectiva y duplicados por mes |
+| Canales y tipo de trámite | Aporte y depuración por canal, clasificación, estado y régimen |
+| Calidad por fuente | Semáforo de homologación, territorio y fecha válida, y documentos fuera de catálogo |
+| Distribución territorial | Departamentos con más trámites |
+
+Una barra fija lleva a cada sección y filtra por canal (Todos, Digital,
+Físico o SAT) sin recargar la página. Los gráficos usan
+[Chart.js](https://www.chartjs.org/): pasar el cursor muestra el valor exacto y
+la leyenda permite ocultar series.
+
+#### Descargar a Excel
+
+- **📊 Excel con tablas dinámicas:** un libro con el consolidado de la cuenta
+  en el **modelo de datos** (Power Pivot), 11 **medidas DAX** (producción
+  efectiva, % de duplicidad, % de críticos, % de homologación…) y cuatro
+  **tablas dinámicas** con segmentaciones por canal y régimen. Al abrirlo,
+  Excel recarga el modelo con los datos de la cuenta. Necesita Excel de
+  escritorio para Windows (2016 o posterior).
+- **⬇ CSV:** el consolidado en un archivo plano, como `setup.py --exportar`.
+
+Cómo se arma el libro: la plantilla `web/plantillas_excel/tablero_calidad.xlsx`
+se construye una sola vez con `scripts/construir_plantilla_excel.ps1` (Excel
+por COM: tabla, modelo, medidas y tablas dinámicas). Al descargar,
+`web/exportar_excel.py` reemplaza solo las filas de la hoja *Datos* dentro del
+`.xlsx` y lo marca para actualizar las conexiones al abrir. No usa openpyxl,
+porque al guardar descarta el modelo de datos y con él las medidas DAX.
 
 ### 5.2 Consola
 
@@ -342,8 +384,11 @@ por periodo, ya interactiva y filtrable por segmentadores.
 Un archivo `.xlsx` con la consulta cargada al modelo de datos **guarda una
 copia completa de lo consultado dentro del propio binario**, documentos de
 identidad incluidos, aunque ninguna hoja los muestre visiblemente. No es un
-detalle menor: es la razón por la que este repositorio excluye por completo
-cualquier `.xlsx`, sin excepción, en el `.gitignore`.
+detalle menor: es la razón por la que este repositorio excluye cualquier
+`.xlsx` en el `.gitignore`. La única excepción, escrita ruta por ruta, es la
+plantilla del panel web (`web/plantillas_excel/tablero_calidad.xlsx`), cuyo
+modelo solo guarda 3 filas inventadas; el libro que descarga cada cuenta se
+arma en memoria y nunca se escribe en el repositorio.
 
 El archivo de trabajo con datos reales se queda siempre en el equipo local,
 nunca en el repositorio.
