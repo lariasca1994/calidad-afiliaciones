@@ -7,7 +7,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import pymysql
 from fastapi import Depends, FastAPI, File, Form, Request, UploadFile
-from fastapi.responses import FileResponse, RedirectResponse
+from fastapi.responses import FileResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -15,6 +15,7 @@ from generador import datos_demo
 from proceso import analisis, esquema, pipeline
 from proceso.conexion import BaseNoDisponible, conectar
 from proceso.fuentes import FUENTES
+from web import exportar_excel, tablero_datos
 from web.seguridad import (
     NOMBRE_COOKIE,
     crear_token,
@@ -219,23 +220,23 @@ def logout():
 
 @app.get("/tablero")
 def tablero(request: Request, sesion: dict = Depends(requiere_sesion), error: str | None = None):
+    usuario_id = sesion["usuario_id"]
     conexion = conectar(salir=False)
     try:
-        secciones = {}
-        for clave, consulta in analisis.CONSULTAS.items():
-            cursor = conexion.cursor()
-            cursor.execute(consulta, {"usuario_id": sesion["usuario_id"]})
-            columnas = [d[0] for d in cursor.description]
-            filas = [dict(zip(columnas, fila)) for fila in cursor.fetchall()]
-            cursor.close()
-            secciones[clave] = {"columnas": columnas, "filas": filas}
+        datos = tablero_datos.consultar(conexion, usuario_id)
     finally:
         conexion.close()
 
     return plantillas.TemplateResponse(
         request,
         "tablero.html",
-        {"email": sesion["email"], "secciones": secciones, "error": error},
+        {
+            "email": sesion["email"],
+            "datos": datos,
+            "hay_datos": tablero_datos.hay_datos(datos),
+            "escenario": tablero_datos.leer_escenario(CARPETA_ENTRADA_USUARIOS / str(usuario_id)),
+            "error": error,
+        },
     )
 
 
@@ -248,15 +249,18 @@ def generar_demo(sesion: dict = Depends(requiere_sesion)):
     explorar el proyecto sin depender de archivos reales ni de la
     terminal, y sin tocar los datos de ninguna otra cuenta.
 
-    Semilla aleatoria en cada clic (no fija), para que cada generación se
-    vea distinta — a diferencia de `python generador/datos_demo.py`, que
-    por defecto es reproducible.
+    Cada clic sortea semilla y escenario (volumen por canal, periodo,
+    duplicidad, rechazos y calidad), para que cada generación cuente una
+    historia distinta — a diferencia de `python generador/datos_demo.py`,
+    que por defecto es reproducible.
     """
     usuario_id = sesion["usuario_id"]
     carpeta = CARPETA_ENTRADA_USUARIOS / str(usuario_id)
 
     semilla = random.randint(1, 1_000_000)
-    datos_demo.generar(escala=ESCALA_DEMO_WEB, semilla=semilla, carpeta=carpeta)
+    escenario = datos_demo.escenario_aleatorio(random.Random(semilla))
+    datos_demo.generar(escala=ESCALA_DEMO_WEB, semilla=semilla, carpeta=carpeta, escenario=escenario)
+    tablero_datos.guardar_escenario(carpeta, escenario.resumen())
 
     conexion = conectar(salir=False)
     try:
@@ -317,6 +321,8 @@ async def cargar_propios(
     carpeta.mkdir(parents=True, exist_ok=True)
     for nombre, cuerpo in contenidos.items():
         (carpeta / nombre).write_bytes(cuerpo)
+    # Datos propios: el tablero ya no debe contar un escenario de ejemplo.
+    tablero_datos.borrar_escenario(carpeta)
 
     conexion = conectar(salir=False)
     try:
@@ -325,6 +331,23 @@ async def cargar_propios(
         conexion.close()
 
     return RedirectResponse(url="/tablero", status_code=303)
+
+
+@app.get("/tablero/exportar-excel")
+def exportar_excel_dinamico(sesion: dict = Depends(requiere_sesion)):
+    """Libro de Excel con el consolidado de ESTA cuenta en el modelo de
+    datos, medidas DAX y tablas dinámicas (ver web/exportar_excel.py)."""
+    conexion = conectar(salir=False)
+    try:
+        contenido = exportar_excel.exportar(conexion, sesion["usuario_id"])
+    finally:
+        conexion.close()
+
+    return Response(
+        contenido,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": 'attachment; filename="calidad_afiliaciones.xlsx"'},
+    )
 
 
 @app.get("/tablero/exportar")

@@ -55,6 +55,11 @@ datos/salida_usuarios/*
 *.xlsx
 *.xlsm
 *.xls
+# Unica excepcion: la plantilla del panel web. La genera
+# scripts/construir_plantilla_excel.ps1 con 3 filas inventadas (su modelo
+# de datos solo guarda esas 3); los datos reales de cada cuenta se
+# escriben en memoria al descargar, nunca en este archivo.
+!web/plantillas_excel/tablero_calidad.xlsx
 
 # --- Python ------------------------------------------------------------------
 __pycache__/

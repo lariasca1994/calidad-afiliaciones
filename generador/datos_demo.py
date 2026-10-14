@@ -43,6 +43,7 @@ import argparse
 import csv
 import random
 import sys
+from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
@@ -107,6 +108,143 @@ ESTADOS_DIGITAL = [
     ("RECHAZADO", 1.9), ("DEVOLUCIÓN", 0.1),
 ]
 
+FUENTES_VOLUMEN = ("afiliaciones", "digital", "sat", "irl", "xml")
+
+
+def _sumar_meses(inicio: date, meses: int) -> date:
+    anio, mes = divmod(inicio.month - 1 + meses, 12)
+    return date(inicio.year + anio, mes + 1, 1)
+
+
+@dataclass
+class Escenario:
+    """Perfil de una generación: cuánto aporta cada canal, en qué periodo
+    y qué tan sucios llegan los datos.
+
+    Con la semilla sola, cada generación cambiaba los documentos pero no
+    el panorama: mismos volúmenes por canal, misma duplicidad y misma
+    calidad, así que el tablero salía prácticamente igual en cada clic.
+    El panel web sortea un escenario por generación (escenario_aleatorio)
+    para que se note la diferencia; la consola usa el escenario base y
+    sigue siendo reproducible con --semilla.
+    """
+
+    nombre: str = "Operación base"
+    descripcion: str = "Volúmenes y tasas de referencia, calibrados con los datos reales."
+    volumen: dict = field(default_factory=lambda: {f: 1.0 for f in FUENTES_VOLUMEN})
+    tasa_multicanal: float = 0.012
+    tasa_interna: float = 0.06
+    factor_rechazos: float = 1.0
+    tasa_fuera_catalogo: float = 0.0008
+    tasa_territorio_vacio: float = 0.0
+    peso_contributivo: float = 65.0
+    pesos_territorio: list | None = None
+    desde: date = date(2025, 1, 1)
+    meses: int = 19
+    pesos_mes: list | None = None
+
+    def fecha(self, rng: random.Random) -> date:
+        """Fecha dentro del periodo, más probable en los meses de mayor peso."""
+        mes = (rng.choices(range(self.meses), weights=self.pesos_mes, k=1)[0]
+               if self.pesos_mes else rng.randrange(self.meses))
+        inicio = _sumar_meses(self.desde, mes)
+        fin = _sumar_meses(self.desde, mes + 1) - timedelta(days=1)
+        return inicio + timedelta(days=rng.randint(0, (fin - inicio).days))
+
+    def estados_digital(self) -> list[tuple]:
+        return [(e, p if e == "RADICADO" else p * self.factor_rechazos) for e, p in ESTADOS_DIGITAL]
+
+    def regimen(self, rng: random.Random) -> str:
+        return rng.choices(["CONTRIBUTIVO", "SUBSIDIADO"],
+                           weights=[self.peso_contributivo, 100 - self.peso_contributivo])[0]
+
+    def territorio_vacio(self, rng: random.Random) -> bool:
+        return rng.random() < self.tasa_territorio_vacio
+
+    def resumen(self) -> dict:
+        """Lo que el tablero muestra del escenario, en palabras sencillas."""
+        hasta = _sumar_meses(self.desde, self.meses) - timedelta(days=1)
+        return {
+            "nombre": self.nombre,
+            "descripcion": self.descripcion,
+            "periodo": f"{self.desde:%m/%Y} a {hasta:%m/%Y} ({self.meses} meses)",
+            "volumen": {f: round(v, 2) for f, v in self.volumen.items()},
+            "duplicidad_multicanal_pct": round(self.tasa_multicanal * 100, 1),
+            "duplicidad_interna_pct": round(self.tasa_interna * 100, 1),
+            "factor_rechazos": round(self.factor_rechazos, 1),
+            "fuera_catalogo_pct": round(self.tasa_fuera_catalogo * 100, 2),
+            "territorio_vacio_pct": round(self.tasa_territorio_vacio * 100, 1),
+        }
+
+
+# Perfiles de operación: le dan una historia reconocible a cada
+# generación (no solo números al azar) y el tablero la cuenta.
+# Cada valor es el centro; escenario_aleatorio() le agrega variación.
+PERFILES = [
+    {"nombre": "Operación estable",
+     "descripcion": "Un periodo sin sobresaltos: los tres canales en su proporción habitual.",
+     "volumen": {"afiliaciones": 1.0, "digital": 1.0, "sat": 1.0},
+     "multicanal": 0.010, "interna": 0.05, "rechazos": 1.0, "fuera": 0.001, "territorio": 0.01},
+    {"nombre": "Campaña de afiliación",
+     "descripcion": "Un mes de campaña dispara el canal digital y, con él, las radicaciones repetidas.",
+     "volumen": {"afiliaciones": 1.1, "digital": 1.9, "sat": 0.9},
+     "multicanal": 0.025, "interna": 0.10, "rechazos": 1.6, "fuera": 0.002, "territorio": 0.02,
+     "pico": True},
+    {"nombre": "Canal presencial fuerte",
+     "descripcion": "Los puntos de atención presencial pesan más que el portal; SAT crece con ellos.",
+     "volumen": {"afiliaciones": 2.2, "digital": 0.6, "sat": 1.5},
+     "multicanal": 0.015, "interna": 0.04, "rechazos": 0.8, "fuera": 0.001, "territorio": 0.04},
+    {"nombre": "Cierre con rechazos",
+     "descripcion": "Un cierre de periodo con muchos trámites anulados, rechazados o sin prerradicar.",
+     "volumen": {"afiliaciones": 0.9, "digital": 1.2, "sat": 1.0},
+     "multicanal": 0.012, "interna": 0.06, "rechazos": 4.5, "fuera": 0.002, "territorio": 0.02},
+    {"nombre": "Migración de sistema",
+     "descripcion": "Tras un cambio de sistema llegan documentos fuera de catálogo y territorios sin dato.",
+     "volumen": {"afiliaciones": 0.8, "digital": 1.0, "sat": 1.3},
+     "multicanal": 0.008, "interna": 0.08, "rechazos": 1.3, "fuera": 0.03, "territorio": 0.12},
+]
+
+
+def escenario_aleatorio(rng: random.Random) -> Escenario:
+    """Sortea un perfil y lo varía: volumen, tasas, periodo y territorio."""
+    perfil = rng.choice(PERFILES)
+
+    def variar(valor: float, amplitud: float = 0.3) -> float:
+        return valor * rng.uniform(1 - amplitud, 1 + amplitud)
+
+    volumen = {f: variar(perfil["volumen"].get(f, 1.0)) for f in FUENTES_VOLUMEN}
+    # El tamaño general también cambia: un periodo puede ser el doble de otro.
+    tamano = rng.choice([0.6, 0.85, 1.0, 1.3, 1.7])
+    volumen = {f: v * tamano for f, v in volumen.items()}
+
+    meses = rng.randint(8, 18)
+    desde = _sumar_meses(date(2026, 8, 1), -meses)
+
+    # Estacionalidad: un recorrido aleatorio mes a mes, y en campaña un pico.
+    pesos_mes, peso = [], 1.0
+    for _ in range(meses):
+        peso *= rng.uniform(0.8, 1.25)
+        pesos_mes.append(peso)
+    if perfil.get("pico"):
+        pico = rng.randrange(meses)
+        pesos_mes[pico] *= rng.uniform(2.5, 4.0)
+
+    return Escenario(
+        nombre=perfil["nombre"],
+        descripcion=perfil["descripcion"],
+        volumen=volumen,
+        tasa_multicanal=variar(perfil["multicanal"]),
+        tasa_interna=variar(perfil["interna"]),
+        factor_rechazos=variar(perfil["rechazos"]),
+        tasa_fuera_catalogo=variar(perfil["fuera"]),
+        tasa_territorio_vacio=variar(perfil["territorio"]),
+        peso_contributivo=rng.uniform(50, 80),
+        pesos_territorio=[rng.uniform(0.3, 3.0) for _ in TERRITORIOS],
+        desde=desde,
+        meses=meses,
+        pesos_mes=pesos_mes,
+    )
+
 
 def _doc(rng: random.Random) -> str:
     return str(rng.randint(10_000_000, 1_299_999_999))
@@ -143,7 +281,7 @@ class GeneradorAfiliados:
     la proporcion que se quiere representar. Ver inyectar_duplicados().
     """
 
-    def __init__(self, rng: random.Random, cantidad_pool: int):
+    def __init__(self, rng: random.Random, cantidad_pool: int, pesos_territorio: list | None = None):
         self.rng = rng
         self.pool = []
         catalogo_valido = [c for c in CATALOGO_DOCUMENTOS if c[2] not in ("NI", "NT")]
@@ -156,7 +294,7 @@ class GeneradorAfiliados:
                 "num_doc": _doc(rng),
                 "nombre1": nombre1,
                 "apellido1": apellido1,
-                "territorio": rng.choice(TERRITORIOS),
+                "territorio": rng.choices(TERRITORIOS, weights=pesos_territorio, k=1)[0],
             })
 
     def repartir(self, *cantidades: int) -> list[list[dict]]:
@@ -250,7 +388,8 @@ def inyectar_duplicados(
                 lista[i] = rng.choice(origen)
 
 
-def generar_afiliaciones(rng: random.Random, asignados: list[dict], carpeta: Path) -> None:
+def generar_afiliaciones(rng: random.Random, asignados: list[dict], carpeta: Path,
+                         esc: Escenario) -> None:
     columnas = [
         "ID", "CODIGOASESOR", "SOLICITUD", "TIPODOCUMENTO", "NUMERODOCUMENTO",
         "DEPARTAMENTOID", "MUNICIPIOID", "CODIGOAFILIACION", "NOMBREIPS",
@@ -262,7 +401,8 @@ def generar_afiliaciones(rng: random.Random, asignados: list[dict], carpeta: Pat
     for i, p in enumerate(asignados):
         depto, _, municipios = p["territorio"]
         muni = rng.choice(municipios)
-        fecha = _fecha_en_rango(rng, date(2025, 1, 1), date(2026, 8, 1))
+        fecha = esc.fecha(rng)
+        sin_territorio = esc.territorio_vacio(rng)
 
         filas.append({
             "ID": i + 1,
@@ -270,15 +410,15 @@ def generar_afiliaciones(rng: random.Random, asignados: list[dict], carpeta: Pat
             "SOLICITUD": f"SOL-{rng.randint(100000, 999999)}",
             "TIPODOCUMENTO": p["tipo_doc"],
             "NUMERODOCUMENTO": p["num_doc"],
-            "DEPARTAMENTOID": depto,
-            "MUNICIPIOID": muni[0],
+            "DEPARTAMENTOID": "" if sin_territorio else depto,
+            "MUNICIPIOID": "" if sin_territorio else muni[0],
             "CODIGOAFILIACION": f"AF{rng.randint(10000, 99999)}",
             "NOMBREIPS": f"IPS {rng.choice(['Central', 'Norte', 'Sur', 'del Barrio'])}",
             "CANTBENEFICIARIO": rng.randint(0, 4),
             "TIPODOCUMENTOEMPLEADOR": "NI",
             "NUMERODOCUMENTOEMPLEADOR": _doc(rng),
             "FECHARADICACION": fecha.strftime("%d/%m/%y"),
-            "REGIMEN": rng.choices(["CONTRIBUTIVO", "SUBSIDIADO"], weights=[65, 35])[0],
+            "REGIMEN": esc.regimen(rng),
             "TIPOAFILIACION": "Afiliación",
             "SISBEN": "",
             "POBLACIONESPECIAL": "",
@@ -288,7 +428,8 @@ def generar_afiliaciones(rng: random.Random, asignados: list[dict], carpeta: Pat
     escribir_csv(carpeta / "AFILIACIONES.csv", columnas, filas, "|")
 
 
-def generar_digital(rng: random.Random, asignados: list[dict], carpeta: Path) -> None:
+def generar_digital(rng: random.Random, asignados: list[dict], carpeta: Path,
+                    esc: Escenario) -> None:
     columnas = [
         "IDPRODUCCION", "ESTADOAFILIACION", "DESCRIPCIONESTADO", "FECHASOLICITUD",
         "FECHARADICACION", "TIPOREGIMEN", "CODIGOASESOR", "TIPOAFILIACION",
@@ -309,10 +450,11 @@ def generar_digital(rng: random.Random, asignados: list[dict], carpeta: Path) ->
     for i, p in enumerate(asignados):
         depto, _, municipios = p["territorio"]
         muni = rng.choice(municipios)
-        dane = depto + muni[0]
+        dane = "" if esc.territorio_vacio(rng) else depto + muni[0]
 
-        estado = _elegir_ponderado(rng, ESTADOS_DIGITAL)
-        solicitud = _fecha_en_rango(rng, datetime(2025, 1, 1), datetime(2026, 8, 1))
+        estado = _elegir_ponderado(rng, esc.estados_digital())
+        dia = esc.fecha(rng)
+        solicitud = datetime(dia.year, dia.month, dia.day) + timedelta(minutes=rng.randint(0, 1439))
 
         # Solo lo radicado tiene fecha de radicacion; el resto solo
         # solicitud, reproduciendo lo encontrado en los datos reales.
@@ -320,7 +462,7 @@ def generar_digital(rng: random.Random, asignados: list[dict], carpeta: Path) ->
 
         # Tipo de documento fuera de catalogo, en proporcion baja: es el
         # hallazgo de calidad que el proyecto debe poder mostrar.
-        tipo_doc = "PS" if rng.random() < 0.0008 else p["tipo_doc"]
+        tipo_doc = "PS" if rng.random() < esc.tasa_fuera_catalogo else p["tipo_doc"]
 
         filas.append({
             "IDPRODUCCION": i + 1,
@@ -328,7 +470,7 @@ def generar_digital(rng: random.Random, asignados: list[dict], carpeta: Path) ->
             "DESCRIPCIONESTADO": estado.title(),
             "FECHASOLICITUD": solicitud.strftime("%Y-%m-%d %H:%M:%S"),
             "FECHARADICACION": radicacion.strftime("%Y-%m-%d %H:%M:%S") if radicacion else "",
-            "TIPOREGIMEN": rng.choices(["CONTRIBUTIVO", "SUBSIDIADO"], weights=[65, 35])[0],
+            "TIPOREGIMEN": esc.regimen(rng),
             "CODIGOASESOR": f"A{rng.randint(100, 199)}",
             "TIPOAFILIACION": "Afiliación",
             "CONTRIBUSOLIDARIA": "N",
@@ -377,7 +519,8 @@ def generar_digital(rng: random.Random, asignados: list[dict], carpeta: Path) ->
     escribir_csv(carpeta / "DIGITAL.csv", columnas, filas, "|")
 
 
-def generar_sat(rng: random.Random, asignados: list[dict], carpeta: Path) -> None:
+def generar_sat(rng: random.Random, asignados: list[dict], carpeta: Path,
+                esc: Escenario) -> None:
     columnas = [
         "ID", "NORADICADOSAT", "CODIGOASESOR", "TIPODOCUMENTO",
         "NUMERODOCUMENTOAFILIADO", "SOLICITUD", "FECHARADICACION", "REGIMEN",
@@ -391,7 +534,8 @@ def generar_sat(rng: random.Random, asignados: list[dict], carpeta: Path) -> Non
     for i, p in enumerate(asignados):
         depto, _, municipios = p["territorio"]
         muni = rng.choice(municipios)
-        fecha = _fecha_en_rango(rng, date(2025, 1, 1), date(2026, 8, 1))
+        fecha = esc.fecha(rng)
+        sin_territorio = esc.territorio_vacio(rng)
 
         filas.append({
             "ID": i + 1,
@@ -401,13 +545,13 @@ def generar_sat(rng: random.Random, asignados: list[dict], carpeta: Path) -> Non
             "NUMERODOCUMENTOAFILIADO": p["num_doc"],
             "SOLICITUD": f"SOL-{rng.randint(100000, 999999)}",
             "FECHARADICACION": fecha.strftime("%d/%m/%y"),
-            "REGIMEN": rng.choices(["CONTRIBUTIVO", "SUBSIDIADO"], weights=[65, 35])[0],
+            "REGIMEN": esc.regimen(rng),
             "TIPODOCUMENTOEMPLEADOR": "4",
             "NUMERODOCUMENTOEMPLEADOR": _doc(rng),
             "TIPOCOTIZANTE": rng.choice(["DEPENDIENTE", "INDEPENDIENTE"]),
             "CANTBENEFICIARIO": rng.randint(0, 4),
-            "DEPARTAMENTOID": depto,
-            "MUNICIPIOID": muni[0],
+            "DEPARTAMENTOID": "" if sin_territorio else depto,
+            "MUNICIPIOID": "" if sin_territorio else muni[0],
             "CODIGOAFILIACION": f"AF{rng.randint(10000, 99999)}",
             "NOMBREIPS": f"IPS {rng.choice(['Central', 'Norte', 'Sur'])}",
             "CODIGOOCUPACION": str(rng.randint(1000, 9999)),
@@ -618,9 +762,13 @@ def generar_xml(
     escribir_csv(carpeta / "XML.csv", columnas, filas, ";")
 
 
-def generar(escala: float, semilla: int, carpeta: Path | None = None) -> None:
+def generar(escala: float, semilla: int, carpeta: Path | None = None,
+            escenario: Escenario | None = None) -> Escenario:
+    """Escribe las seis fuentes y devuelve el escenario usado. Sin
+    escenario se usa el base: mismos volúmenes y tasas de siempre."""
     destino = carpeta if carpeta is not None else ENTRADA
     rng = random.Random(semilla)
+    esc = escenario or Escenario()
 
     # Volumen base a escala 1.0 (subido un poco desde 900/3200/900/5000/9000):
     # sigue corriendo en segundos y muy por debajo del tope de carga
@@ -629,7 +777,7 @@ def generar(escala: float, semilla: int, carpeta: Path | None = None) -> None:
     # --escala a mano.
     base = {"afiliaciones": 1200, "digital": 4200, "sat": 1200,
             "irl": 6500, "xml": 12000}
-    n = {k: max(1, int(v * escala)) for k, v in base.items()}
+    n = {k: max(1, int(v * escala * esc.volumen.get(k, 1.0))) for k, v in base.items()}
 
     # El pool operativo cubre exactamente los tres canales que participan
     # en la deduplicacion, sin excedente: asi el reparto sin reemplazo no
@@ -641,12 +789,12 @@ def generar(escala: float, semilla: int, carpeta: Path | None = None) -> None:
     destino.mkdir(parents=True, exist_ok=True)
 
     print("Generando datos sintéticos")
-    print(f"  Escala: {escala}x · Semilla: {semilla}\n")
+    print(f"  Escala: {escala}x · Semilla: {semilla} · Escenario: {esc.nombre}\n")
 
     generar_homologacion(destino)
     print(f"  HOMOLOGACION_DOCUMENTOS.csv   {len(CATALOGO_DOCUMENTOS)} filas")
 
-    operativo = GeneradorAfiliados(rng, total_operativo)
+    operativo = GeneradorAfiliados(rng, total_operativo, esc.pesos_territorio)
     asig_afiliaciones, asig_digital, asig_sat = operativo.repartir(
         n["afiliaciones"], n["digital"], n["sat"]
     )
@@ -659,15 +807,15 @@ def generar(escala: float, semilla: int, carpeta: Path | None = None) -> None:
         "AFILIACIONES": asig_afiliaciones,
         "DIGITAL": asig_digital,
         "SAT": asig_sat,
-    })
+    }, tasa_multicanal=esc.tasa_multicanal, tasa_interna=esc.tasa_interna)
 
-    generar_afiliaciones(rng, asig_afiliaciones, destino)
+    generar_afiliaciones(rng, asig_afiliaciones, destino, esc)
     print(f"  AFILIACIONES.csv              {n['afiliaciones']} filas")
 
-    generar_digital(rng, asig_digital, destino)
+    generar_digital(rng, asig_digital, destino, esc)
     print(f"  DIGITAL.csv                   {n['digital']} filas")
 
-    generar_sat(rng, asig_sat, destino)
+    generar_sat(rng, asig_sat, destino, esc)
     print(f"  SAT.csv                       {n['sat']} filas")
 
     generar_irl(rng, operativo.pool, n["irl"], destino)
@@ -683,6 +831,7 @@ def generar(escala: float, semilla: int, carpeta: Path | None = None) -> None:
 
     print(f"\nArchivos escritos en {destino}")
     print("Ejecuta 'python setup.py' para cargarlos.")
+    return esc
 
 
 def main() -> int:

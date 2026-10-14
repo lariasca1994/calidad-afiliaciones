@@ -26,6 +26,8 @@ datos/salida_usuarios/*
 *.xlsx
 *.xlsm
 *.xls
+# La plantilla del panel (3 filas inventadas, ver .gitignore) sí va en la imagen.
+!web/plantillas_excel/tablero_calidad.xlsx
 *.7z
 *.zip
 *.rar
