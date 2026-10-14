@@ -86,7 +86,7 @@
     function pintarKpis(t) {
         var calidad = pct(t.consolidados - t.noHomologado - t.territorio, t.consolidados);
         var tarjetas = [
-            ["Producción consolidada", n(t.consolidados), "de " + n(t.recibidos) + " registros recibidos", ["neutro", "Cifra única"],
+            ["Producción consolidada", n(t.consolidados), "de " + n(t.recibidos) + " registros recibidos", ["neutro", "Total"],
              "Afiliaciones únicas: una por persona, aunque haya radicado por varios canales o varias veces. Es la cifra en la que se puede confiar."],
             ["Producción efectiva", fpct(pct(t.efectiva, t.consolidados)), n(t.efectiva) + " trámites radicados", semaforo(pct(t.efectiva, t.consolidados), 90, 80, true),
              "Parte del consolidado que quedó radicada. Lo anulado, rechazado o sin prerradicar no cuenta como producción. Referencia: 90 % o más."],
