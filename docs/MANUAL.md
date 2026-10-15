@@ -8,41 +8,91 @@ protege la plataforma. Para la parte técnica (arquitectura, consola, Power Quer
 
 ## Contenido
 
-1. [En pocas palabras](#1-en-pocas-palabras)
-2. [Antes de empezar](#2-antes-de-empezar)
-3. [Paso a paso](#3-paso-a-paso)
-4. [Qué información ingresas y dónde queda](#4-qué-información-ingresas-y-dónde-queda)
-5. [Seguridad: qué se garantiza](#5-seguridad-qué-se-garantiza)
-6. [Límites y recomendaciones](#6-límites-y-recomendaciones)
-7. [Preguntas frecuentes](#7-preguntas-frecuentes)
+1. [Proyecto: objetivos y alcances](#1-proyecto-objetivos-y-alcances)
+2. [Glosario](#2-glosario)
+3. [Plataformas, base de datos y servicios](#3-plataformas-base-de-datos-y-servicios)
+4. [Paso a paso](#4-paso-a-paso)
+5. [Seguridad: tu información protegida](#5-seguridad-tu-información-protegida)
+6. [Agradecimientos](#6-agradecimientos)
 
 ---
 
-## 1. En pocas palabras
+## 1. Proyecto: objetivos y alcances
+
+### Objetivo
 
 El panel recibe los archivos de afiliación de tres canales (digital, SAT y físico) más los
 históricos, deja **un solo registro por afiliado** y muestra una cifra de producción confiable con
 sus problemas de calidad. Si no tienes archivos propios, un botón genera datos sintéticos con los
 mismos problemas que tienen los reales.
 
-## 2. Antes de empezar
+### Alcance: qué necesitas y qué esperar
 
 - Solo necesitas un navegador; no hay que instalar nada.
 - La base de datos se apaga cuando nadie la usa. Si al entrar aparece la página **En
   mantenimiento**, la base se está encendiendo: espera unos minutos y vuelve a intentarlo.
 - **Usa datos de ejemplo.** La demo es pública; no subas archivos con documentos reales de
-  afiliados (ver [Límites](#6-límites-y-recomendaciones)).
+  afiliados (ver [Límites](#1-proyecto-objetivos-y-alcances)).
 
-## 3. Paso a paso
+### Límites
 
-### 3.1 Portada
+Es una demo de portafolio, no un sistema certificado para datos personales de salud:
+
+- **No subas datos reales de afiliados** a la instancia pública. Para datos reales, corre el
+  proyecto en tu equipo (ver [Instalación](../README.md#6-instalación-para-pruebas)).
+- No hay verificación del correo ni recuperación de contraseña: si la olvidas, crea otra cuenta.
+- No hay longitud mínima de contraseña ni bloqueo por intentos fallidos: elige una contraseña
+  larga y que no uses en otros sitios.
+- El Excel que descargas del tablero (y cualquier libro conectado a la base) guarda una copia de
+  los datos dentro del `.xlsx`, también en su modelo de datos. Trátalo como un archivo con datos.
+
+## 2. Glosario
+
+Palabras técnicas que aparecen en este manual, explicadas en lenguaje simple.
+
+| Término | Qué significa |
+|---|---|
+| **Administrador** | Cuenta con permisos para gestionar usuarios y configuraciones de la aplicación. |
+| **API** | Puerta de entrada de un programa para que otros programas le pidan o le envíen datos. |
+| **Arranque en frío** | Los servidores gratuitos se apagan sin uso; la primera visita tarda unos segundos mientras vuelven a encenderse. |
+| **Base de datos** | Lugar donde la aplicación guarda la información de forma ordenada y permanente. |
+| **Cifrado / TLS / HTTPS** | Protección que codifica la información mientras viaja, para que nadie en el camino pueda leerla. |
+| **Contraseña cifrada (hash)** | La contraseña no se guarda tal cual, sino como una "huella" de la que no se puede recuperar el texto original. |
+| **Cookie** | Pequeño dato que el navegador guarda para recordar tu sesión en ese sitio. |
+| **CSV** | Archivo de texto con datos en columnas, que se abre en Excel o Google Sheets. |
+| **Excel / XLSX** | Formato de hoja de cálculo de Microsoft Excel. |
+| **JWT** | Tipo de token firmado digitalmente: si alguien lo altera, el servidor lo rechaza. |
+| **Modo mantenimiento** | Pantalla que aparece cuando el servicio o su base de datos no responden; se recupera sola cuando vuelven. |
+| **Navegador** | Programa con el que abres páginas web: Chrome, Edge, Firefox, Safari. |
+| **Nube** | Servidores de una empresa (Amazon, Microsoft, Google, Oracle…) donde la aplicación funciona sin depender de un computador propio. |
+| **Rate limit (límite de intentos)** | Tope de intentos en poco tiempo, para frenar a quien intenta adivinar contraseñas. |
+| **Servidor** | Computador en la nube que atiende las peticiones de la aplicación. |
+| **Sesión** | El tiempo en que la aplicación te reconoce después de iniciar sesión, sin pedirte la contraseña de nuevo. |
+| **Tema claro / oscuro** | Combinación de colores de la interfaz; puedes elegir la clara o la oscura. |
+| **Variables de entorno / secretos** | Claves y contraseñas internas de la aplicación, guardadas fuera del código para que no queden expuestas. |
+
+## 3. Plataformas, base de datos y servicios
+
+Qué servicio de nube, base de datos o API usa el proyecto y para qué sirve cada uno.
+
+| Plataforma | Tipo | Qué hace en el proyecto |
+|---|---|---|
+| ![Azure Container Apps](https://img.shields.io/badge/Azure_Container_Apps-0078D4?style=for-the-badge&logo=microsoftazure&logoColor=white) | Nube | Corre el panel web (FastAPI + Jinja2) y el mismo pipeline ETL que usa la consola. |
+| ![MySQL](https://img.shields.io/badge/MySQL-4479A1?style=for-the-badge&logo=mysql&logoColor=white) | Base de datos | Aiven aloja la base MySQL 8 con las seis fuentes, el consolidado y las cuentas del panel. Si está dormida, el proyecto la despierta con la API de Aiven antes de conectarse. |
+| ![Excel](https://img.shields.io/badge/Power_Query_%2F_Power_Pivot-217346?style=for-the-badge&logo=microsoftexcel&logoColor=white) | Formato de archivo | Se conecta directo a la tabla `consolidado` para armar tablas dinámicas. |
+| ![GitHub Actions](https://img.shields.io/badge/GitHub_Actions-181717?style=for-the-badge&logo=githubactions&logoColor=white) | Automatización | Construye la imagen Docker y la despliega en Azure. |
+| ![qa-evidencia](https://img.shields.io/badge/qa--evidencia-2EAD33?style=for-the-badge&logo=playwright&logoColor=white) | Pruebas automatizadas | Prueba la demo automáticamente y publica la evidencia. |
+
+## 4. Paso a paso
+
+### 4.1 Portada
 
 ![Portada del panel](img/manual/01-portada.png)
 
 Desde la portada eliges **Crear cuenta** o **Iniciar sesión**. El botón de la luna, arriba a la
 derecha, cambia entre tema claro y oscuro.
 
-### 3.2 Crear una cuenta
+### 4.2 Crear una cuenta
 
 ![Formulario de registro con sus campos numerados](img/manual/02-registro.png)
 
@@ -55,7 +105,7 @@ derecha, cambia entre tema claro y oscuro.
 
 El registro es libre y no requiere aprobación. Si el correo ya existe, el panel lo avisa.
 
-### 3.3 Iniciar sesión
+### 4.3 Iniciar sesión
 
 ![Formulario de inicio de sesión](img/manual/03-login.png)
 
@@ -68,7 +118,7 @@ El registro es libre y no requiere aprobación. Si el correo ya existe, el panel
 Si el correo o la contraseña no coinciden, el mensaje es el mismo en ambos casos, para no revelar
 qué correos están registrados.
 
-### 3.4 Tablero de indicadores
+### 4.4 Tablero de indicadores
 
 ![Tablero con los botones de carga](img/manual/04-tablero.png)
 
@@ -93,7 +143,7 @@ los datos. El recuadro 🧪 arriba del tablero dice cuál salió, por ejemplo *�
 | Cierre con rechazos | Muchos trámites anulados, rechazados o sin prerradicar |
 | Migración de sistema | Documentos fuera de catálogo y territorios sin dato |
 
-### 3.5 Subir tus propios archivos
+### 4.5 Subir tus propios archivos
 
 ![Formulario para subir los seis archivos](img/manual/05-subir-archivos.png)
 
@@ -102,7 +152,7 @@ los datos. El recuadro 🧪 arriba del tablero dice cuál salió, por ejemplo *�
 | 1 | Seleccionar archivos | Los **6 archivos** de origen a la vez | Nombres exactos: `AFILIACIONES.csv`, `DIGITAL.csv`, `SAT.csv`, `PROCESO_IRL.csv`, `XML.csv` y `HOMOLOGACION_DOCUMENTOS.csv`. Máximo **50 MB** por archivo. No se acepta una carga parcial |
 | 2 | Subir y procesar | Botón | Reemplaza los datos que tuviera tu cuenta y corre el mismo proceso de depuración |
 
-### 3.6 Leer los resultados
+### 4.6 Leer los resultados
 
 ![Tablero completo con todos los bloques de indicadores](img/manual/06-tablero-completo.png)
 
@@ -124,7 +174,7 @@ tendencia, el tipo de trámite, el estado, el régimen y el territorio, sin reca
 Cada sección tiene un **¿Cómo leer esto?** que se despliega con la explicación, y en los gráficos
 puedes pasar el cursor (o tocar) para ver el valor exacto, o tocar la leyenda para ocultar una serie.
 
-### 3.7 Descargar el Excel con tablas dinámicas
+### 4.7 Descargar el Excel con tablas dinámicas
 
 El botón **📊 Excel con tablas dinámicas** descarga `calidad_afiliaciones.xlsx`, con tres hojas:
 
@@ -140,7 +190,30 @@ y las tablas dinámicas con tus datos. Si llega en **Vista protegida**, pulsa **
 si las tablas dinámicas siguen mostrando otras cifras, usa **Datos → Actualizar todo**. Para tus
 propios análisis: **Insertar → Tabla dinámica → Desde el modelo de datos** y arrastra las medidas.
 
-## 4. Qué información ingresas y dónde queda
+### 4.8 Preguntas frecuentes
+
+**¿Por qué a veces aparece "En mantenimiento"?** La base se apaga sin uso para no generar costos
+y tarda unos minutos en volver a encenderse. Espera un momento y vuelve a entrar.
+
+**¿Otra persona puede ver mis datos?** No. Cada cuenta ve solo lo que generó o subió.
+
+**¿Puedo borrar mis datos?** Al generar datos de ejemplo o subir archivos nuevos, se reemplaza
+todo lo que tenía tu cuenta.
+
+**¿Por qué cada vez que genero datos salen cifras distintas?** A propósito: cada generación simula
+un periodo diferente (ver el recuadro 🧪 del tablero), para que puedas ver cómo cambia el informe
+cuando cambian el volumen, la duplicidad o la calidad de los datos.
+
+**El Excel abre con las tablas dinámicas vacías o con otras cifras.** Pulsa **Habilitar edición**
+si aparece la Vista protegida y, si hace falta, **Datos → Actualizar todo**. El libro necesita Excel
+de escritorio para Windows 2016 o posterior (Microsoft 365 incluido): Excel en la web y Excel para
+Mac no editan modelos de datos de Power Pivot.
+
+## 5. Seguridad: tu información protegida
+
+Tu confianza es lo primero: la plataforma solo pide los datos necesarios para funcionar, los protege y no los comparte con terceros. Esto es lo que se guarda y cómo se protege.
+
+### Qué datos se guardan y dónde
 
 | Dato | Para qué se usa | Dónde se guarda | Cómo se protege |
 |---|---|---|---|
@@ -150,7 +223,7 @@ propios análisis: **Insertar → Tabla dinámica → Desde el modelo de datos**
 | Datos de ejemplo | Probar el panel | Igual que los archivos, marcados con tu `usuario_id` | Son sintéticos: no corresponden a personas reales |
 | Sesión | Mantenerte conectado | Cookie `sesion` en tu navegador | Firmada (JWT HS256), invisible para JavaScript (`HttpOnly`), vence a las 8 horas |
 
-## 5. Seguridad: qué se garantiza
+### Cómo se protege tu información
 
 Comprobado en el código del proyecto (`web/seguridad.py`, `web/main.py`, `proceso/conexion.py`):
 
@@ -174,33 +247,8 @@ Comprobado en el código del proyecto (`web/seguridad.py`, `web/main.py`, `proce
   afiliados. La única excepción es la plantilla del Excel descargable, que solo trae 3 filas
   inventadas: tus datos se escriben en el libro en memoria al descargarlo, nunca en el repositorio.
 
-## 6. Límites y recomendaciones
+## 6. Agradecimientos
 
-Es una demo de portafolio, no un sistema certificado para datos personales de salud:
+A mi familia, por su apoyo incondicional, su paciencia y por creer en cada proyecto incluso cuando apenas era una idea. Este trabajo también es de ustedes.
 
-- **No subas datos reales de afiliados** a la instancia pública. Para datos reales, corre el
-  proyecto en tu equipo (ver [Instalación](../README.md#6-instalación-para-pruebas)).
-- No hay verificación del correo ni recuperación de contraseña: si la olvidas, crea otra cuenta.
-- No hay longitud mínima de contraseña ni bloqueo por intentos fallidos: elige una contraseña
-  larga y que no uses en otros sitios.
-- El Excel que descargas del tablero (y cualquier libro conectado a la base) guarda una copia de
-  los datos dentro del `.xlsx`, también en su modelo de datos. Trátalo como un archivo con datos.
-
-## 7. Preguntas frecuentes
-
-**¿Por qué a veces aparece "En mantenimiento"?** La base se apaga sin uso para no generar costos
-y tarda unos minutos en volver a encenderse. Espera un momento y vuelve a entrar.
-
-**¿Otra persona puede ver mis datos?** No. Cada cuenta ve solo lo que generó o subió.
-
-**¿Puedo borrar mis datos?** Al generar datos de ejemplo o subir archivos nuevos, se reemplaza
-todo lo que tenía tu cuenta.
-
-**¿Por qué cada vez que genero datos salen cifras distintas?** A propósito: cada generación simula
-un periodo diferente (ver el recuadro 🧪 del tablero), para que puedas ver cómo cambia el informe
-cuando cambian el volumen, la duplicidad o la calidad de los datos.
-
-**El Excel abre con las tablas dinámicas vacías o con otras cifras.** Pulsa **Habilitar edición**
-si aparece la Vista protegida y, si hace falta, **Datos → Actualizar todo**. El libro necesita Excel
-de escritorio para Windows 2016 o posterior (Microsoft 365 incluido): Excel en la web y Excel para
-Mac no editan modelos de datos de Power Pivot.
+Y a ti, que usas esta plataforma: cada prueba, comentario y sugerencia ayuda a que siga mejorando.
