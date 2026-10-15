@@ -144,15 +144,19 @@ setup.py                    Comando único
 ## 3. Arquitectura
 
 <p align="center">
-  <img src="docs/arquitectura.svg" alt="Diagrama de arquitectura: panel web en Azure Container Apps, MySQL gestionado en Aiven, consola local, Excel y despliegue con GitHub Actions" width="100%">
+  <img src="docs/arquitectura.svg" alt="Diagrama de arquitectura: panel web con tablero en Chart.js y exportación a Excel con modelo de datos y medidas DAX, en Azure Container Apps; MySQL gestionado en Aiven; consola local con generador de escenarios; Excel con Power Query y despliegue con GitHub Actions" width="100%">
 </p>
 
 - El panel web (FastAPI + Jinja2) corre el mismo pipeline ETL que usa la consola;
-  cada cuenta ve solo sus propios datos.
+  cada cuenta ve solo sus propios datos. Su tablero dibuja los gráficos en el
+  navegador con Chart.js.
+- **Exportar a Excel** arma, desde el mismo contenedor, un libro con el modelo de
+  datos, 11 medidas DAX y tablas dinámicas, que el analista descarga desde el tablero.
 - Si la base MySQL 8 está dormida, el proyecto la despierta antes de conectarse.
 - **En local**, `python setup.py` ejecuta el mismo pipeline, y el generador crea
-  datos sintéticos para probar sin datos reales.
-- **Excel** se conecta directo a la tabla `consolidado` con Power Query.
+  datos sintéticos para probar sin datos reales (en el panel, con un escenario
+  distinto en cada generación).
+- **Excel** también puede conectarse directo a la tabla `consolidado` con Power Query.
 
 ### Nota técnica
 
