@@ -10,7 +10,9 @@ en lugar de intentar conectarse a un servidor inexistente.
 """
 
 import os
+import queue
 import sys
+import time
 from pathlib import Path
 
 import pymysql
@@ -72,26 +74,90 @@ class BaseNoDisponible(Exception):
     """La base no respondió (apagada, sin red o credenciales inválidas)."""
 
 
+# Conexiones libres para reutilizar: abrir una conexión TLS hasta la base
+# (en otra nube) cuesta varios viajes de ida y vuelta. Ver ConexionPrestada.
+POOL_MAX_LIBRES = 4
+# Una conexión libre por más de este tiempo se verifica (ping) antes de
+# reutilizarla; si se usó hace poco se entrega directo (el ping es otro viaje).
+VERIFICAR_TRAS_SEGUNDOS = 30
+_libres: "queue.LifoQueue[tuple[pymysql.connections.Connection, float]]" = queue.LifoQueue(
+    maxsize=POOL_MAX_LIBRES
+)
+
+
+class ConexionPrestada:
+    """Una conexión del pool. Se usa igual que la de PyMySQL; close() no la
+    cierra: deshace lo que haya quedado sin confirmar y la devuelve al pool
+    para la siguiente petición."""
+
+    def __init__(self, conexion: pymysql.connections.Connection):
+        self._conexion = conexion
+
+    def __getattr__(self, nombre):
+        return getattr(self._conexion, nombre)
+
+    def close(self) -> None:
+        conexion, self._conexion = self._conexion, None
+        if conexion is None:
+            return
+        try:
+            conexion.rollback()
+            _libres.put_nowait((conexion, time.monotonic()))
+        except (pymysql.Error, queue.Full):
+            _cerrar(conexion)
+
+
+def _cerrar(conexion: pymysql.connections.Connection) -> None:
+    try:
+        conexion.close()
+    except pymysql.Error:
+        pass
+
+
+def _libre_sana() -> pymysql.connections.Connection | None:
+    """Una conexión libre que siga viva, o None."""
+    while True:
+        try:
+            conexion, devuelta = _libres.get_nowait()
+        except queue.Empty:
+            return None
+        if time.monotonic() - devuelta < VERIFICAR_TRAS_SEGUNDOS:
+            return conexion
+        try:
+            conexion.ping(reconnect=False)
+            return conexion
+        except pymysql.Error:
+            _cerrar(conexion)
+
+
 def conectar(salir: bool = True):
     """Devuelve una conexión abierta, o termina con un mensaje útil.
 
     Con salir=False (uso desde la web) no termina el proceso: lanza
     BaseNoDisponible y el panel muestra la página de mantenimiento.
 
-    Si el .env tiene configurado el encendido automático (ver
-    aiven_control.py), primero verifica que el servicio esté activo. Es
-    opcional: sin esa configuración se salta el paso y se intenta
-    conectar directamente.
+    Primero reutiliza una conexión libre; si no hay, abre una. Solo si la
+    base no responde y el .env tiene configurado el encendido automático
+    (ver aiven_control.py), consulta a Aiven, enciende el servicio si está
+    apagado y reintenta una vez. Antes se consultaba a Aiven en cada
+    petición, lo que sumaba segundos a cada página.
     """
-    from proceso import aiven_control
+    libre = _libre_sana()
+    if libre is not None:
+        return ConexionPrestada(libre)
 
-    if aiven_control.configurado():
-        aiven_control.asegurar_encendido()
+    from proceso import aiven_control
 
     config = _leer_configuracion()
 
     try:
-        conexion = pymysql.connect(**config)
+        try:
+            conexion = pymysql.connect(**config)
+        except pymysql.Error:
+            if not aiven_control.configurado():
+                raise
+            aiven_control.asegurar_encendido()
+            conexion = pymysql.connect(**config)
     except pymysql.Error as error:
         print(f"No se pudo conectar a {config['host']}:{config['port']}")
         print(f"  {error}")
@@ -103,7 +169,7 @@ def conectar(salir: bool = True):
             raise BaseNoDisponible(str(error)) from error
         sys.exit(1)
 
-    return conexion
+    return ConexionPrestada(conexion)
 
 
 def describir() -> str:
