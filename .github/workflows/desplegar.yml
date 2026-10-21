@@ -70,18 +70,9 @@ jobs:
 
       # El correo de recuperacion de cuenta (API de Brevo) se configura desde
       # los secretos y variables del repositorio: nada se edita a mano en Azure.
-      - name: Actualizar la configuracion de correo
-        env:
-          BREVO_API_KEY: ${{ secrets.BREVO_API_KEY }}
-        run: |
-          az containerapp secret set \
-            --name "$APP" \
-            --resource-group "$GRUPO" \
-            --secrets "brevo-api-key=$BREVO_API_KEY" \
-            --only-show-errors -o none
-
       - name: Actualizar la Container App
         env:
+          BREVO_API_KEY: ${{ secrets.BREVO_API_KEY }}
           BREVO_REMITENTE: ${{ secrets.BREVO_REMITENTE }}
           URL_PUBLICA: ${{ vars.URL_PUBLICA }}
         run: |
@@ -90,7 +81,7 @@ jobs:
             --resource-group "$GRUPO" \
             --image "$IMAGEN:${{ github.sha }}" \
             --set-env-vars \
-              "BREVO_API_KEY=secretref:brevo-api-key" \
+              "BREVO_API_KEY=$BREVO_API_KEY" \
               "BREVO_REMITENTE=$BREVO_REMITENTE" \
               "URL_PUBLICA=$URL_PUBLICA" \
             --only-show-errors \
