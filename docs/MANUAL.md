@@ -40,9 +40,10 @@ Es una demo de portafolio, no un sistema certificado para datos personales de sa
 
 - **No subas datos reales de afiliados** a la instancia pública. Para datos reales, corre el
   proyecto en tu equipo (ver [Instalación](../README.md#6-instalación-para-pruebas)).
-- No hay verificación del correo ni recuperación de contraseña: si la olvidas, crea otra cuenta.
-- No hay longitud mínima de contraseña ni bloqueo por intentos fallidos: elige una contraseña
-  larga y que no uses en otros sitios.
+- El registro no verifica el correo: para recuperar la cuenta con **¿Olvidaste tu contraseña?**,
+  regístrate con un correo al que tengas acceso.
+- El registro no exige longitud mínima de contraseña (al cambiarla o restablecerla sí: 8
+  caracteres): elige una contraseña larga y que no uses en otros sitios.
 - El Excel que descargas del tablero (y cualquier libro conectado a la base) guarda una copia de
   los datos dentro del `.xlsx`, también en su modelo de datos. Trátalo como un archivo con datos.
 
@@ -98,7 +99,7 @@ derecha, cambia entre tema claro y oscuro.
 
 | # | Campo | Qué escribir | Reglas |
 |:-:|---|---|---|
-| 1 | Correo | El correo con el que vas a entrar | Formato de correo válido; se guarda en minúsculas. No se envía ningún mensaje a ese correo |
+| 1 | Correo | El correo con el que vas a entrar | Formato de correo válido; se guarda en minúsculas. Solo se le escribe si pides recuperar la contraseña |
 | 2 | Contraseña | Tu contraseña | Máximo 72 bytes (las tildes, la ñ y los emojis cuentan doble o más) |
 | 3 | Confirmar contraseña | La misma contraseña | Debe coincidir con el campo 2 |
 | 4 | Crear cuenta | Botón | Crea la cuenta vacía y te deja con la sesión iniciada |
@@ -117,6 +118,21 @@ El registro es libre y no requiere aprobación. Si el correo ya existe, el panel
 
 Si el correo o la contraseña no coinciden, el mensaje es el mismo en ambos casos, para no revelar
 qué correos están registrados.
+
+### 4.3.1 Olvidé mi contraseña
+
+1. En el inicio de sesión pulsa **¿Olvidaste tu contraseña?** y escribe el correo de tu cuenta.
+2. El panel responde siempre lo mismo, exista o no la cuenta, para no revelar qué correos están
+   registrados. Si existe, llega un correo con el enlace **Crear contraseña nueva**.
+3. El enlace vence en 30 minutos y sirve una sola vez. Escribe la nueva contraseña (mínimo 8
+   caracteres) y su confirmación, y vuelve a iniciar sesión.
+
+Se pueden pedir como máximo 3 enlaces cada 15 minutos por correo; pedirlos no bloquea el ingreso.
+
+### 4.3.2 Cambiar la contraseña
+
+Con la sesión iniciada, pulsa **Contraseña** en la barra superior. Escribe la contraseña actual,
+la nueva (mínimo 8 caracteres y distinta de la actual) y su confirmación.
 
 ### 4.4 Tablero de indicadores
 

@@ -91,6 +91,8 @@
 
             {% if error %}
             <div class="alerta" role="alert">{{ error }}</div>
+            {% elif exito %}
+            <div class="alerta alerta--exito" role="status">{{ exito }}</div>
             {% endif %}
 
             {% block formulario %}{% endblock %}

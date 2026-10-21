@@ -1,0 +1,20 @@
+{% extends "acceso_base.html" %}
+{% block titulo %}Nueva contraseña — Calidad de Afiliaciones{% endblock %}
+{% block paso %}Acceso al tablero{% endblock %}
+{% block titulo_form %}Crea una nueva contraseña{% endblock %}
+{% block subtitulo %}Mínimo 8 caracteres.{% endblock %}
+{% block formulario %}
+<form method="post" action="/restablecer" class="formulario">
+    <input type="hidden" name="token" value="{{ token }}" />
+    <div class="campo">
+        <label for="password">Nueva contraseña</label>
+        <input type="password" id="password" name="password" minlength="8" autocomplete="new-password" required />
+    </div>
+    <div class="campo">
+        <label for="confirmacion">Confirma la nueva contraseña</label>
+        <input type="password" id="confirmacion" name="confirmacion" minlength="8" autocomplete="new-password" required />
+    </div>
+    <button type="submit" class="boton">Guardar contraseña</button>
+</form>
+<p class="alterno"><a href="/recuperar">Pedir otro enlace</a></p>
+{% endblock %}

@@ -1,4 +1,7 @@
+import html
 import random
+import threading
+import time
 import sys
 from pathlib import Path
 from urllib.parse import quote
@@ -15,11 +18,15 @@ from generador import datos_demo
 from proceso import analisis, esquema, pipeline
 from proceso.conexion import BaseNoDisponible, conectar
 from proceso.fuentes import FUENTES
-from web import exportar_excel, tablero_datos
+from web import correo, exportar_excel, tablero_datos
 from web.seguridad import (
     NOMBRE_COOKIE,
+    RECUPERAR_MINUTOS,
     crear_token,
+    crear_token_recuperacion,
     hashear_password,
+    huella_coincide,
+    leer_token_recuperacion,
     requiere_sesion,
     sesion_opcional,
     verificar_password,
@@ -368,4 +375,141 @@ def exportar_consolidado(sesion: dict = Depends(requiere_sesion)):
         carpeta / "consolidado.csv",
         media_type="text/csv",
         filename="consolidado.csv",
+    )
+
+
+# ── Recuperar y cambiar la contraseña ──────────────────────────────────────
+
+_RESPUESTA_RECUPERAR = (
+    "Si el correo pertenece a una cuenta, te enviamos un enlace para crear una contraseña nueva. "
+    "Revisa tu bandeja (y la carpeta de spam)."
+)
+_ENVIOS: dict[str, list[float]] = {}
+_CANDADO = threading.Lock()
+LARGO_MINIMO = 8
+
+
+def _puede_enviar(email: str) -> bool:
+    """Máximo 3 enlaces cada 15 minutos por correo (no bloquea el ingreso)."""
+    ahora = time.time()
+    with _CANDADO:
+        recientes = [t for t in _ENVIOS.get(email, []) if ahora - t < 15 * 60]
+        _ENVIOS[email] = recientes if len(recientes) >= 3 else recientes + [ahora]
+        return len(recientes) < 3
+
+
+def _usuario(campo: str, valor) -> tuple | None:
+    conexion = conectar(salir=False)
+    try:
+        cursor = conexion.cursor()
+        cursor.execute(f"SELECT id, email, password_hash FROM usuarios WHERE {campo} = %s", (valor,))
+        fila = cursor.fetchone()
+        cursor.close()
+        return fila
+    finally:
+        conexion.close()
+
+
+def _guardar_password(usuario_id: int, password_hash: str) -> None:
+    conexion = conectar(salir=False)
+    try:
+        cursor = conexion.cursor()
+        cursor.execute("UPDATE usuarios SET password_hash = %s WHERE id = %s", (password_hash, usuario_id))
+        conexion.commit()
+        cursor.close()
+    finally:
+        conexion.close()
+
+
+def _validar_nueva(password: str, confirmacion: str) -> tuple[str | None, str | None]:
+    if password != confirmacion:
+        return "La confirmación no coincide", None
+    if len(password) < LARGO_MINIMO:
+        return f"La contraseña debe tener al menos {LARGO_MINIMO} caracteres", None
+    try:
+        return None, hashear_password(password)
+    except ValueError as error:
+        return str(error), None
+
+
+@app.get("/recuperar")
+def formulario_recuperar(request: Request):
+    return plantillas.TemplateResponse(request, "recuperar.html", {})
+
+
+@app.post("/recuperar")
+def procesar_recuperar(request: Request, email: str = Form(...)):
+    email = email.strip().lower()
+    fila = _usuario("email", email)
+    if fila is not None and _puede_enviar(email):
+        enlace = f"{correo.URL_PUBLICA}/restablecer?token={crear_token_recuperacion(fila[0], fila[2])}"
+        correo.enviar(
+            fila[1], "", "Restablece tu contraseña · Calidad de Afiliaciones",
+            f"Hola,\n\nPara crear una contraseña nueva abre este enlace (vence en {RECUPERAR_MINUTOS} "
+            f"minutos y sirve una vez):\n\n{enlace}\n\nSi no fuiste tú, ignora este correo: tu contraseña no cambia.",
+            "<p>Hola,</p><p>Para crear una contraseña nueva en <strong>Calidad de Afiliaciones</strong>:</p>"
+            f'<p><a href="{html.escape(enlace)}" style="background:#F29111;color:#1a1a1a;padding:10px 18px;border-radius:6px;'
+            f'text-decoration:none">Crear contraseña nueva</a></p><p>El enlace vence en {RECUPERAR_MINUTOS} '
+            "minutos y sirve una sola vez. Si no fuiste tú, ignora este correo.</p>",
+        )
+    return plantillas.TemplateResponse(request, "recuperar.html", {"exito": _RESPUESTA_RECUPERAR})
+
+
+@app.get("/restablecer")
+def formulario_restablecer(request: Request, token: str = ""):
+    error = None if leer_token_recuperacion(token) else "El enlace no es válido o ya venció. Pide uno nuevo."
+    return plantillas.TemplateResponse(request, "restablecer.html", {"token": token, "error": error})
+
+
+@app.post("/restablecer")
+def procesar_restablecer(
+    request: Request, token: str = Form(...), password: str = Form(...), confirmacion: str = Form(...)
+):
+    leido = leer_token_recuperacion(token)
+    fila = _usuario("id", leido[0]) if leido else None
+    if fila is None or not huella_coincide(fila[2], leido[1]):
+        error, nuevo = "El enlace no es válido o ya venció. Pide uno nuevo.", None
+    else:
+        error, nuevo = _validar_nueva(password, confirmacion)
+    if error:
+        return plantillas.TemplateResponse(
+            request, "restablecer.html", {"token": token, "error": error}, status_code=400
+        )
+    _guardar_password(fila[0], nuevo)
+    return plantillas.TemplateResponse(
+        request, "login.html", {"exito": "Tu contraseña quedó actualizada. Ya puedes ingresar."}
+    )
+
+
+@app.get("/cuenta/contrasena")
+def formulario_cambiar_contrasena(request: Request, sesion: dict | None = Depends(sesion_opcional)):
+    if sesion is None:
+        return RedirectResponse(url="/login", status_code=303)
+    return plantillas.TemplateResponse(request, "cuenta_contrasena.html", {"sesion": sesion, "email": sesion["email"]})
+
+
+@app.post("/cuenta/contrasena")
+def cambiar_contrasena(
+    request: Request,
+    actual: str = Form(...),
+    password: str = Form(...),
+    confirmacion: str = Form(...),
+    sesion: dict | None = Depends(sesion_opcional),
+):
+    if sesion is None:
+        return RedirectResponse(url="/login", status_code=303)
+    fila = _usuario("id", sesion["usuario_id"])
+    if fila is None or not verificar_password(actual, fila[2]):
+        error, nuevo = "La contraseña actual no es correcta", None
+    elif password == actual:
+        error, nuevo = "La contraseña nueva debe ser distinta de la actual", None
+    else:
+        error, nuevo = _validar_nueva(password, confirmacion)
+    if error:
+        return plantillas.TemplateResponse(
+            request, "cuenta_contrasena.html", {"sesion": sesion, "email": sesion["email"], "error": error}, status_code=400
+        )
+    _guardar_password(fila[0], nuevo)
+    return plantillas.TemplateResponse(
+        request, "cuenta_contrasena.html", {"sesion": sesion, "email": sesion["email"], "exito": "Tu contraseña quedó actualizada."}
     )

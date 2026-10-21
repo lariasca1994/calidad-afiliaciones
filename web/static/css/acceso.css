@@ -538,3 +538,5 @@ body.acceso {
     display: none;
   }
 }
+
+.alerta.alerta--exito { background: #e7f6ec; border-color: #9bd3ad; color: #14532d; }
