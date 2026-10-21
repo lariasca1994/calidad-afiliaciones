@@ -196,6 +196,14 @@ vertical en cinco fuentes, punto y coma en la radicación histórica—.
 1. Pulsa **Iniciar sesión**, escribe **Correo** y **Contraseña** y pulsa **Entrar**.
 2. Llegas al **Tablero de indicadores**.
 
+#### Recuperar o cambiar la contraseña
+
+1. En el inicio de sesión pulsa **¿Olvidaste tu contraseña?** y escribe tu correo. Si la cuenta
+   existe, llega un enlace (API de Brevo) que vence en 30 minutos y sirve una sola vez; la respuesta
+   es la misma exista o no la cuenta.
+2. Con la sesión iniciada, **Contraseña** (barra superior) cambia la contraseña: pide la actual y la nueva (mínimo
+   8 caracteres).
+
 #### Cargar datos
 
 Cada cuenta ve exclusivamente sus propios datos: al generar el conjunto de ejemplo,
