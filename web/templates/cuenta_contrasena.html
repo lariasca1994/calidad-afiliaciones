@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block titulo %}Cambiar contraseña — Calidad de Afiliaciones{% endblock %}
+{% block contenido %}
+<h1 class="text-2xl font-bold mb-6">Cambiar contraseña</h1>
+<section class="max-w-md space-y-4">
+    {% if error %}<div class="rounded border border-rose-200 bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:border-rose-900 dark:text-rose-300 px-4 py-3 text-sm" role="alert">{{ error }}</div>{% endif %}
+    {% if exito %}<div class="rounded border border-emerald-200 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:border-emerald-900 dark:text-emerald-300 px-4 py-3 text-sm" role="status">{{ exito }}</div>{% endif %}
+    <form method="post" action="/cuenta/contrasena" class="space-y-4">
+        <div>
+            <label class="block text-sm font-medium mb-1" for="actual">Contraseña actual</label>
+            <input type="password" id="actual" name="actual" required autocomplete="current-password" class="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm" />
+        </div>
+        <div>
+            <label class="block text-sm font-medium mb-1" for="password">Nueva contraseña (mínimo 8 caracteres)</label>
+            <input type="password" id="password" name="password" minlength="8" required autocomplete="new-password" class="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm" />
+        </div>
+        <div>
+            <label class="block text-sm font-medium mb-1" for="confirmacion">Confirma la nueva contraseña</label>
+            <input type="password" id="confirmacion" name="confirmacion" minlength="8" required autocomplete="new-password" class="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm" />
+        </div>
+        <button type="submit" class="bg-mysql hover:opacity-90 text-white font-semibold rounded px-4 py-2 text-sm">Guardar contraseña</button>
+    </form>
+</section>
+{% endblock %}

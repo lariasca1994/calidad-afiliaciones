@@ -1,4 +1,6 @@
 import datetime
+import hashlib
+import hmac
 import os
 from pathlib import Path
 
@@ -59,6 +61,38 @@ def crear_token(usuario_id: int, email: str) -> str:
         "exp": datetime.datetime.utcnow() + datetime.timedelta(hours=JWT_HORAS_VALIDEZ),
     }
     return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITMO)
+
+
+# ── Recuperación de cuenta ─────────────────────────────────────────────────
+# Enlace firmado, con vencimiento y de un solo uso: lleva la huella de la
+# contraseña actual (al cambiarla deja de servir) y una audiencia propia, así
+# que _decodificar_token (sesiones) lo rechaza.
+_AUDIENCIA_RECUPERAR = "recuperar"
+RECUPERAR_MINUTOS = 30
+
+
+def _huella(password_hash: str) -> str:
+    return hashlib.sha256((password_hash or "").encode()).hexdigest()[:24]
+
+
+def crear_token_recuperacion(usuario_id: int, password_hash: str) -> str:
+    return jwt.encode(
+        {"sub": str(usuario_id), "h": _huella(password_hash), "aud": _AUDIENCIA_RECUPERAR,
+         "exp": datetime.datetime.utcnow() + datetime.timedelta(minutes=RECUPERAR_MINUTOS)},
+        JWT_SECRET, algorithm=JWT_ALGORITMO,
+    )
+
+
+def leer_token_recuperacion(token: str) -> tuple[int, str] | None:
+    try:
+        carga = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITMO], audience=_AUDIENCIA_RECUPERAR)
+        return int(carga["sub"]), str(carga["h"])
+    except (jwt.PyJWTError, KeyError, ValueError):
+        return None
+
+
+def huella_coincide(password_hash: str, huella: str) -> bool:
+    return hmac.compare_digest(_huella(password_hash), huella)
 
 
 def _decodificar_token(token: str) -> dict | None:
