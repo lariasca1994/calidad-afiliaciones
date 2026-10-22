@@ -259,8 +259,9 @@ Tu confianza es lo primero: la plataforma solo pide los datos necesarios para fu
 Comprobado en el código del proyecto (`web/seguridad.py`, `web/main.py`, `proceso/conexion.py`):
 
 - **Verificación en dos pasos obligatoria** con app autenticadora (TOTP) o código por correo:
-  la clave de la app se guarda cifrada, un código no se acepta dos veces, y el código del correo
-  vence en 10 minutos, admite 5 intentos y se pueden pedir 3 cada 10 minutos.
+  la clave de la app se guarda cifrada, un código no se acepta dos veces, 5 códigos errados de la
+  app la bloquean 15 minutos, y el código del correo vence en 10 minutos, admite 5 intentos y se
+  pueden pedir 3 cada 10 minutos.
 - **Contraseñas con bcrypt.** Solo se guarda la huella; ni el administrador puede ver tu
   contraseña.
 - **Sesión en cookie `HttpOnly` y `SameSite=Lax`**, firmada con una clave secreta del servidor y
