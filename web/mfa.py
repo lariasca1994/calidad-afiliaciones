@@ -8,7 +8,8 @@ Cada cuenta usa al menos uno de dos metodos y puede tener ambos:
     generar codigos. Un mismo codigo no se acepta dos veces.
   - Codigo por correo: 6 digitos de un solo uso que vencen en 10 minutos.
     Solo se guarda su huella (HMAC) y admite 5 intentos; se pueden pedir
-    hasta 3 envios cada 10 minutos.
+    hasta 3 envios cada 10 minutos. Tras 5 codigos de la app errados, la app
+    queda bloqueada 15 minutos.
 
 Todo vive en la columna JSON "mfa" de la tabla usuarios (MySQL); el usuario se
 maneja como diccionario con id, email y mfa.
@@ -39,6 +40,7 @@ _PASO = 30
 _CODIGO_MINUTOS = 10
 _MAX_INTENTOS = 5
 _MAX_ENVIOS = 3
+_BLOQUEO_SEG = 15 * 60  # tras 5 códigos de la app errados
 
 _clave = HKDF(algorithm=hashes.SHA256(), length=32, salt=None, info=b"CalidadAfiliaciones.MFA.v1").derive(
     JWT_SECRET.encode("utf-8")
@@ -246,7 +248,17 @@ def verificar(usuario, metodo: str, codigo: str) -> bool:
     if metodo not in metodos_activos(usuario):
         return False
     if metodo == "totp":
-        return _verificar_totp(usuario, estado(usuario).get("totp"), codigo)
+        # Sin este freno, con la contraseña bastaría probar códigos hasta acertar.
+        if estado(usuario).get("bloqueo_hasta", 0) > time.time():
+            return False
+        if _verificar_totp(usuario, estado(usuario).get("totp"), codigo):
+            if estado(usuario).get("fallos"):
+                _guardar(usuario, {"fallos": 0})
+            return True
+        fallos = estado(usuario).get("fallos", 0) + 1
+        _guardar(usuario, {"fallos": 0, "bloqueo_hasta": time.time() + _BLOQUEO_SEG}
+                 if fallos >= _MAX_INTENTOS else {"fallos": fallos})
+        return False
     return _verificar_correo(usuario, codigo)
 
 
