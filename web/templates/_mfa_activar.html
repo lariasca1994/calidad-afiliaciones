@@ -1,0 +1,17 @@
+{# Confirmación de un método nuevo (lo usan el ingreso y el perfil). #}
+{% if metodo == 'totp' and app %}
+<p class="ayuda-mfa">1. Escanea este código con tu app autenticadora.</p>
+<div class="mfa-qr" aria-label="Código QR para la app autenticadora">{{ app.qr | safe }}</div>
+<p class="ayuda-mfa">¿No puedes escanear? Escribe esta clave: <code class="mfa-clave">{{ app.secreto }}</code></p>
+<p class="ayuda-mfa">2. Escribe el código de 6 dígitos que muestra la app.</p>
+{% elif metodo == 'correo' %}
+<p class="ayuda-mfa">Te enviamos un código de 6 dígitos a <strong>{{ correo_usuario }}</strong>. Vence en 10 minutos.</p>
+{% endif %}
+<form method="post" action="{{ accion }}" class="formulario">
+    <input type="hidden" name="metodo" value="{{ metodo }}" />
+    <div class="campo">
+        <label for="codigo">Código de 6 dígitos</label>
+        <input type="text" id="codigo" name="codigo" required inputmode="numeric" pattern="[0-9 ]{6,7}" maxlength="7" autocomplete="one-time-code" autofocus />
+    </div>
+    <button type="submit" class="boton">Activar</button>
+</form>

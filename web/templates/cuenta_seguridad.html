@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block titulo %}Seguridad — Calidad de Afiliaciones{% endblock %}
+{% block contenido %}
+<h1 class="text-2xl font-bold mb-2">Verificación en dos pasos</h1>
+<p class="text-sm text-slate-500 dark:text-slate-400 mb-6">Cada ingreso pide, además de la contraseña, un código de uno de tus métodos.</p>
+<section class="max-w-xl space-y-4">
+    {% if error %}<div class="rounded border border-rose-200 bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:border-rose-900 dark:text-rose-300 px-4 py-3 text-sm" role="alert">{{ error }}</div>{% endif %}
+    {% if exito %}<div class="rounded border border-emerald-200 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:border-emerald-900 dark:text-emerald-300 px-4 py-3 text-sm" role="status">{{ exito }}</div>{% endif %}
+    <ul class="space-y-3">
+        {% for clave, nombre in metodos.items() %}
+        <li class="flex flex-wrap items-center justify-between gap-3 rounded border border-slate-200 dark:border-slate-700 px-4 py-3">
+            <div>
+                <p class="font-semibold">{{ nombre }}</p>
+                <p class="text-sm text-slate-500 dark:text-slate-400">{% if clave in activos %}Activa{% if clave == preferido %} · se pide por defecto{% endif %}{% else %}Sin configurar{% endif %}</p>
+            </div>
+            {% if clave not in activos %}
+            <form method="post" action="/cuenta/seguridad/agregar"><button type="submit" name="metodo" value="{{ clave }}" class="bg-mysql hover:opacity-90 text-white font-semibold rounded px-4 py-2 text-sm">Agregar</button></form>
+            {% elif clave != preferido %}
+            <form method="post" action="/cuenta/seguridad/preferido"><button type="submit" name="metodo" value="{{ clave }}" class="border border-mysql text-mysql font-semibold rounded px-4 py-2 text-sm">Pedir este por defecto</button></form>
+            {% endif %}
+        </li>
+        {% endfor %}
+    </ul>
+    {% if accion %}
+    <div class="border-t border-slate-200 dark:border-slate-700 pt-4 space-y-4">
+        <h2 class="text-lg font-semibold">Agregar: {{ metodos[metodo] }}</h2>
+        {% if metodo == 'totp' and app %}
+        <p class="text-sm">1. Escanea este código con tu app autenticadora.</p>
+        <div class="mfa-qr">{{ app.qr | safe }}</div>
+        <p class="text-sm">¿No puedes escanear? Escribe esta clave: <code class="mfa-clave">{{ app.secreto }}</code></p>
+        <p class="text-sm">2. Escribe el código de 6 dígitos que muestra la app.</p>
+        {% elif metodo == 'correo' %}
+        <p class="text-sm">Te enviamos un código de 6 dígitos a <strong>{{ correo_usuario }}</strong>. Vence en 10 minutos.</p>
+        {% endif %}
+        <form method="post" action="{{ accion }}" class="space-y-4">
+            <input type="hidden" name="metodo" value="{{ metodo }}" />
+            <div>
+            <label class="block text-sm font-medium mb-1" for="codigo">Código de 6 dígitos</label>
+            <input type="text" id="codigo" name="codigo" required inputmode="numeric" pattern="[0-9 ]{6,7}" maxlength="7" autocomplete="one-time-code" class="w-full rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm" />
+        </div>
+            <button type="submit" class="bg-mysql hover:opacity-90 text-white font-semibold rounded px-4 py-2 text-sm">Activar</button>
+        </form>
+    </div>
+    {% endif %}
+</section>
+<style>
+.mfa-qr { display: flex; justify-content: center; padding: .75rem; background: #fff; border-radius: 10px; width: fit-content; }
+.mfa-qr svg { display: block; width: 190px; height: 190px; }
+.mfa-clave { font-family: ui-monospace, monospace; word-break: break-all; font-size: .85em; }
+</style>
+{% endblock %}
