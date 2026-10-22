@@ -91,6 +91,30 @@ def leer_token_recuperacion(token: str) -> tuple[int, str] | None:
         return None
 
 
+_AUDIENCIA_MFA = "mfa"
+COOKIE_MFA = "calidad_mfa"
+MFA_MINUTOS = 10
+
+
+def crear_token_mfa(usuario_id: int) -> str:
+    """Pase de 10 minutos entre la contraseña y el código de la verificación en dos
+    pasos. No sirve como sesión: _decodificar_token lo rechaza por llevar audiencia."""
+    return jwt.encode(
+        {"sub": str(usuario_id), "aud": _AUDIENCIA_MFA,
+         "exp": datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(minutes=MFA_MINUTOS)},
+        JWT_SECRET, algorithm=JWT_ALGORITMO,
+    )
+
+
+def leer_token_mfa(token: str | None) -> int | None:
+    if not token:
+        return None
+    try:
+        return int(jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITMO], audience=_AUDIENCIA_MFA)["sub"])
+    except (jwt.PyJWTError, KeyError, ValueError):
+        return None
+
+
 def huella_coincide(password_hash: str, huella: str) -> bool:
     return hmac.compare_digest(_huella(password_hash), huella)
 

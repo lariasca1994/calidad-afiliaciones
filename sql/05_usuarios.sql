@@ -13,5 +13,7 @@ CREATE TABLE IF NOT EXISTS usuarios (
     id INT AUTO_INCREMENT PRIMARY KEY,
     email VARCHAR(255) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
+    -- Verificación en dos pasos (web/mfa.py): clave TOTP cifrada y código del correo como huella.
+    mfa JSON NULL,
     creado_en DATETIME DEFAULT CURRENT_TIMESTAMP
 );

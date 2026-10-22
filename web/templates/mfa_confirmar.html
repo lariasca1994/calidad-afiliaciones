@@ -1,0 +1,9 @@
+{% extends "acceso_base.html" %}
+{% block titulo %}Verificación en dos pasos — Calidad de Afiliaciones{% endblock %}
+{% block paso %}Un paso más{% endblock %}
+{% block titulo_form %}{{ metodos[metodo] }}{% endblock %}
+{% block subtitulo %}Confirma el método con un código para terminar de ingresar.{% endblock %}
+{% block formulario %}
+{% include "_mfa_activar.html" %}
+<p class="alterno"><a href="/verificacion">Elegir otro método</a></p>
+{% endblock %}

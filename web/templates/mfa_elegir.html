@@ -1,0 +1,14 @@
+{% extends "acceso_base.html" %}
+{% block titulo %}Verificación en dos pasos — Calidad de Afiliaciones{% endblock %}
+{% block paso %}Un paso más{% endblock %}
+{% block titulo_form %}Protege tu cuenta{% endblock %}
+{% block subtitulo %}Además de la contraseña, cada ingreso pedirá un código. Elige cómo recibirlo; después puedes agregar el otro desde Seguridad.{% endblock %}
+{% block formulario %}
+<form method="post" action="/verificacion/configurar" class="formulario">
+    <button type="submit" name="metodo" value="totp" class="boton">App autenticadora (recomendado)</button>
+    <p class="ayuda-mfa">Google Authenticator, Microsoft Authenticator u otra: funciona sin internet.</p>
+    <button type="submit" name="metodo" value="correo" class="boton">Código por correo</button>
+    <p class="ayuda-mfa">Te enviamos un código de 6 dígitos cada vez que ingreses.</p>
+</form>
+<p class="alterno"><a href="/login">Volver a iniciar sesión</a></p>
+{% endblock %}
