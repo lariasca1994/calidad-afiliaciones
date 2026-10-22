@@ -190,11 +190,16 @@ vertical en cinco fuentes, punto y coma en la radicación histórica—.
 1. En la portada, pulsa **Crear cuenta**.
 2. Completa **Correo**, **Contraseña** y **Confirmar contraseña**.
 3. Pulsa **Crear cuenta**. El registro es público y libre, sin aprobación previa.
+4. Elige tu verificación en dos pasos: **App autenticadora** (escanea el QR y escribe el primer
+   código) o **Código por correo**.
 
 #### Iniciar sesión
 
 1. Pulsa **Iniciar sesión**, escribe **Correo** y **Contraseña** y pulsa **Entrar**.
-2. Llegas al **Tablero de indicadores**.
+2. Escribe el código de 6 dígitos de tu app o de tu correo y pulsa **Verificar** (verificación en
+   dos pasos obligatoria). En **Seguridad** puedes agregar el otro método y elegir el que se pide
+   por defecto.
+3. Llegas al **Tablero de indicadores**.
 
 #### Recuperar o cambiar la contraseña
 

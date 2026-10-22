@@ -102,7 +102,7 @@ derecha, cambia entre tema claro y oscuro.
 | 1 | Correo | El correo con el que vas a entrar | Formato de correo válido; se guarda en minúsculas. Solo se le escribe si pides recuperar la contraseña |
 | 2 | Contraseña | Tu contraseña | Máximo 72 bytes (las tildes, la ñ y los emojis cuentan doble o más) |
 | 3 | Confirmar contraseña | La misma contraseña | Debe coincidir con el campo 2 |
-| 4 | Crear cuenta | Botón | Crea la cuenta vacía y te deja con la sesión iniciada |
+| 4 | Crear cuenta | Botón | Crea la cuenta vacía y te lleva a elegir tu verificación en dos pasos |
 
 El registro es libre y no requiere aprobación. Si el correo ya existe, el panel lo avisa.
 
@@ -114,7 +114,7 @@ El registro es libre y no requiere aprobación. Si el correo ya existe, el panel
 |:-:|---|---|
 | 1 | Correo | El correo de tu cuenta |
 | 2 | Contraseña | Tu contraseña |
-| 3 | Entrar | Abre tu tablero de indicadores |
+| 3 | Entrar | Pide el código de tu verificación en dos pasos; al escribirlo y pulsar **Verificar** se abre tu tablero |
 
 Si el correo o la contraseña no coinciden, el mensaje es el mismo en ambos casos, para no revelar
 qué correos están registrados.
@@ -133,6 +133,20 @@ Se pueden pedir como máximo 3 enlaces cada 15 minutos por correo; pedirlos no b
 
 Con la sesión iniciada, pulsa **Contraseña** en la barra superior. Escribe la contraseña actual,
 la nueva (mínimo 8 caracteres y distinta de la actual) y su confirmación.
+
+### 4.3.3 Verificación en dos pasos (obligatoria)
+
+Cada ingreso pide, además de la contraseña, un código. La primera vez que ingresas (o al crear la
+cuenta) eliges cómo recibirlo:
+
+| Método | Cómo funciona |
+|---|---|
+| **App autenticadora** (recomendado) | Escaneas un código QR con Google Authenticator, Microsoft Authenticator u otra app; desde ese momento la app muestra un código nuevo cada 30 segundos, incluso sin internet. Si no puedes escanear, escribe la clave que aparece bajo el QR. |
+| **Código por correo** | Cada vez que ingresas te llega un código de 6 dígitos que vence en 10 minutos y sirve una sola vez. |
+
+Confirma el método escribiendo el primer código. Desde **Seguridad** (barra superior) puedes
+**agregar el método que no elegiste** y escoger cuál se pide **por defecto**; tener los dos te
+permite entrar aunque no tengas el teléfono a mano.
 
 ### 4.4 Tablero de indicadores
 
@@ -237,12 +251,16 @@ Tu confianza es lo primero: la plataforma solo pide los datos necesarios para fu
 | Contraseña | Iniciar sesión | Tabla `usuarios`, **solo su huella bcrypt** | Nunca se guarda en texto plano ni se puede recuperar |
 | Archivos CSV que subes | Calcular tus indicadores | Carpeta de tu cuenta en el contenedor y tablas de MySQL marcadas con tu `usuario_id` | Cada consulta filtra por tu cuenta |
 | Datos de ejemplo | Probar el panel | Igual que los archivos, marcados con tu `usuario_id` | Son sintéticos: no corresponden a personas reales |
+| Verificación en dos pasos | Confirmar que eres tú al ingresar | Tabla `usuarios`, columna `mfa`: clave de la app **cifrada** (AES-GCM) y código del correo **solo como huella** | Nadie: no se puede leer desde la base |
 | Sesión | Mantenerte conectado | Cookie `sesion` en tu navegador | Firmada (JWT HS256), invisible para JavaScript (`HttpOnly`), vence a las 8 horas |
 
 ### Cómo se protege tu información
 
 Comprobado en el código del proyecto (`web/seguridad.py`, `web/main.py`, `proceso/conexion.py`):
 
+- **Verificación en dos pasos obligatoria** con app autenticadora (TOTP) o código por correo:
+  la clave de la app se guarda cifrada, un código no se acepta dos veces, y el código del correo
+  vence en 10 minutos, admite 5 intentos y se pueden pedir 3 cada 10 minutos.
 - **Contraseñas con bcrypt.** Solo se guarda la huella; ni el administrador puede ver tu
   contraseña.
 - **Sesión en cookie `HttpOnly` y `SameSite=Lax`**, firmada con una clave secreta del servidor y
