@@ -281,6 +281,8 @@ Comprobado en el código del proyecto (`web/seguridad.py`, `web/main.py`, `proce
   entorno; el `.gitignore` bloquea cualquier CSV o `.xlsx` para que nunca se publiquen datos de
   afiliados. La única excepción es la plantilla del Excel descargable, que solo trae 3 filas
   inventadas: tus datos se escriben en el libro en memoria al descargarlo, nunca en el repositorio.
+- **Runtime con parches de seguridad:** la imagen fija Python 3.12.15 y certifi 2026.10.19 o
+  posterior, que deja de confiar en los certificados intermedios comprometidos de eMudhra.
 
 ## 6. Agradecimientos
 
