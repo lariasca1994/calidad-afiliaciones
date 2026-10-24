@@ -416,7 +416,7 @@ nunca en el repositorio.
 
 ### Requisitos
 
-- Python 3.10 o superior
+- Python 3.12 (3.12.15 o posterior, con los parches de seguridad de octubre de 2026)
 - Una base MySQL 8 accesible
 
 El proyecto se desarrolló contra un servicio gestionado en la nube, pero
