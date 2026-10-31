@@ -252,7 +252,7 @@ Tu confianza es lo primero: la plataforma solo pide los datos necesarios para fu
 | Archivos CSV que subes | Calcular tus indicadores | Carpeta de tu cuenta en el contenedor y tablas de MySQL marcadas con tu `usuario_id` | Cada consulta filtra por tu cuenta |
 | Datos de ejemplo | Probar el panel | Igual que los archivos, marcados con tu `usuario_id` | Son sintéticos: no corresponden a personas reales |
 | Verificación en dos pasos | Confirmar que eres tú al ingresar | Tabla `usuarios`, columna `mfa`: clave de la app **cifrada** (AES-GCM) y código del correo **solo como huella** | Nadie: no se puede leer desde la base |
-| Sesión | Mantenerte conectado | Cookie `sesion` en tu navegador | Firmada (JWT HS256), invisible para JavaScript (`HttpOnly`), vence a las 8 horas |
+| Sesión | Mantenerte conectado | Cookie `sesion` en tu navegador | Firmada e invisible para JavaScript; vence sola |
 
 ### Cómo se protege tu información
 
@@ -264,8 +264,7 @@ Comprobado en el código del proyecto (`web/seguridad.py`, `web/main.py`, `proce
   pueden pedir 3 cada 10 minutos.
 - **Contraseñas con bcrypt.** Solo se guarda la huella; ni el administrador puede ver tu
   contraseña.
-- **Sesión en cookie `HttpOnly` y `SameSite=Lax`**, firmada con una clave secreta del servidor y
-  válida por 8 horas. **Salir** la borra.
+- **Sesión en una cookie segura** que vence sola. **Salir** la borra.
 - **Aislamiento por cuenta.** Todas las tablas llevan `usuario_id` y cada consulta, carga o
   exportación se limita a tu cuenta: dos cuentas nunca ven ni mezclan sus datos, aunque generen
   datos al mismo tiempo.
