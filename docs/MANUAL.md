@@ -248,10 +248,10 @@ Tu confianza es lo primero: la plataforma solo pide los datos necesarios para fu
 | Dato | Para qué se usa | Dónde se guarda | Cómo se protege |
 |---|---|---|---|
 | Correo | Identificar tu cuenta | Tabla `usuarios` en MySQL (Aiven) | Solo lo ves tú; no se muestra a otras cuentas |
-| Contraseña | Iniciar sesión | Tabla `usuarios`, **solo su huella bcrypt** | Nunca se guarda en texto plano ni se puede recuperar |
+| Contraseña | Iniciar sesión | Tabla `usuarios`, **solo su huella** | Nunca se guarda en texto plano ni se puede recuperar |
 | Archivos CSV que subes | Calcular tus indicadores | Carpeta de tu cuenta en el contenedor y tablas de MySQL marcadas con tu `usuario_id` | Cada consulta filtra por tu cuenta |
 | Datos de ejemplo | Probar el panel | Igual que los archivos, marcados con tu `usuario_id` | Son sintéticos: no corresponden a personas reales |
-| Verificación en dos pasos | Confirmar que eres tú al ingresar | Tabla `usuarios`, columna `mfa`: clave de la app **cifrada** (AES-GCM) y código del correo **solo como huella** | Nadie: no se puede leer desde la base |
+| Verificación en dos pasos | Confirmar que eres tú al ingresar | Tabla `usuarios`, columna `mfa`: clave de la app **cifrada** y código del correo **solo como huella** | Nadie: no se puede leer desde la base |
 | Sesión | Mantenerte conectado | Cookie `sesion` en tu navegador | Firmada e invisible para JavaScript; vence sola |
 
 ### Cómo se protege tu información
@@ -259,10 +259,9 @@ Tu confianza es lo primero: la plataforma solo pide los datos necesarios para fu
 Comprobado en el código del proyecto (`web/seguridad.py`, `web/main.py`, `proceso/conexion.py`):
 
 - **Verificación en dos pasos obligatoria** con app autenticadora (TOTP) o código por correo:
-  la clave de la app se guarda cifrada, un código no se acepta dos veces, 5 códigos errados de la
-  app la bloquean 15 minutos, y el código del correo vence en 10 minutos, admite 5 intentos y se
-  pueden pedir 3 cada 10 minutos.
-- **Contraseñas con bcrypt.** Solo se guarda la huella; ni el administrador puede ver tu
+  la clave de la app se guarda cifrada, un código no se acepta dos veces, los intentos errados
+  bloquean temporalmente y el código del correo vence en pocos minutos.
+- **Contraseñas protegidas.** Solo se guarda la huella; ni el administrador puede ver tu
   contraseña.
 - **Sesión en una cookie segura** que vence sola. **Salir** la borra.
 - **Aislamiento por cuenta.** Todas las tablas llevan `usuario_id` y cada consulta, carga o
