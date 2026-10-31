@@ -31,7 +31,7 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 
 from proceso.conexion import conectar
-from web import correo
+from web import auditoria, correo
 from web.seguridad import JWT_SECRET
 
 EMISOR = "Calidad de Afiliaciones"
@@ -173,7 +173,7 @@ def _verificar_totp(usuario, secreto_cifrado: str | None, codigo: str) -> bool:
     return False
 
 
-def activar_totp(usuario, codigo: str) -> bool:
+def _activar_totp(usuario, codigo: str) -> bool:
     pendiente = estado(usuario).get("totp_pendiente")
     if not _verificar_totp(usuario, pendiente, _limpiar(codigo)):
         return False
@@ -229,7 +229,7 @@ def _verificar_correo(usuario, codigo: str) -> bool:
     return True
 
 
-def activar_correo(usuario, codigo: str) -> bool:
+def _activar_correo(usuario, codigo: str) -> bool:
     if not _verificar_correo(usuario, _limpiar(codigo)):
         return False
     cambios = {"correo": True}
@@ -242,7 +242,7 @@ def activar_correo(usuario, codigo: str) -> bool:
 # ─────────────────────────────── verificacion ──────────────────────────────
 
 
-def verificar(usuario, metodo: str, codigo: str) -> bool:
+def _verificar_metodo(usuario, metodo: str, codigo: str) -> bool:
     """Comprueba el codigo de un metodo ya activo."""
     codigo = _limpiar(codigo)
     if metodo not in metodos_activos(usuario):
@@ -267,3 +267,61 @@ def elegir_preferido(usuario, metodo: str) -> bool:
         return False
     _guardar(usuario, {"preferido": metodo})
     return True
+
+
+# ───────────────────── auditoría y bloqueo por contraseña ─────────────────────
+
+_MAX_FALLOS_CLAVE = 5
+_BLOQUEO_CLAVE_SEG = 15 * 60
+MENSAJE_BLOQUEO = "Demasiados intentos fallidos. Espera unos minutos e inténtalo de nuevo."
+
+
+def verificar(usuario, metodo: str, codigo: str) -> bool:
+    """Comprueba el código de un método ya activo y deja el intento en la auditoría."""
+    if _verificar_metodo(usuario, metodo, codigo):
+        auditoria.registrar(auditoria.INGRESO, usuario)
+        return True
+    auditoria.registrar(auditoria.CODIGO_ERRADO, usuario)
+    return False
+
+
+def activar_totp(usuario, codigo: str) -> bool:
+    if not _activar_totp(usuario, codigo):
+        return False
+    auditoria.registrar(auditoria.METODO_ACTIVADO, usuario)
+    return True
+
+
+def activar_correo(usuario, codigo: str) -> bool:
+    if not _activar_correo(usuario, codigo):
+        return False
+    auditoria.registrar(auditoria.METODO_ACTIVADO, usuario)
+    return True
+
+
+def clave_bloqueada(usuario) -> bool:
+    """True si la cuenta está bloqueada por contraseñas erradas seguidas."""
+    return estado(usuario).get("bloqueo_clave_hasta", 0) > time.time()
+
+
+def fallo_de_clave(usuario) -> None:
+    """Suma una contraseña errada; la quinta seguida bloquea la cuenta un tiempo."""
+    auditoria.registrar(auditoria.CLAVE_ERRADA, usuario)
+    fallos = estado(usuario).get("fallos_clave", 0) + 1
+    if fallos >= _MAX_FALLOS_CLAVE:
+        _guardar(usuario, {"fallos_clave": 0, "bloqueo_clave_hasta": time.time() + _BLOQUEO_CLAVE_SEG})
+        auditoria.registrar(auditoria.CUENTA_BLOQUEADA, usuario)
+    else:
+        _guardar(usuario, {"fallos_clave": fallos})
+
+
+def clave_correcta(usuario) -> None:
+    """La contraseña fue correcta: el contador vuelve a cero."""
+    if estado(usuario).get("fallos_clave"):
+        _guardar(usuario, {"fallos_clave": 0})
+
+
+def clave_restablecida(usuario) -> None:
+    """Contraseña nueva (recuperación o cambio): se levanta el bloqueo y queda en la auditoría."""
+    _guardar(usuario, {"fallos_clave": 0, "bloqueo_clave_hasta": 0})
+    auditoria.registrar(auditoria.CLAVE_CAMBIADA, usuario)

@@ -42,6 +42,9 @@ pueda confiar.
   marcas de calidad para cada registro.
 - **Para quién:** equipos de calidad u operación de una EPS que necesitan saber
   cuántas afiliaciones reales hubo y qué problemas tienen los datos.
+- **Seguridad:** verificación en dos pasos obligatoria, bloqueo temporal ante intentos fallidos
+  repetidos y registro de eventos de seguridad (ingresos, intentos fallidos, bloqueos y cambios
+  de contraseña).
 - **Cómo se usa:** desde el navegador (panel web, sin instalar nada), desde la
   terminal (`python setup.py`) o desde Excel con Power Query.
 

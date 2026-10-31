@@ -18,7 +18,7 @@ from generador import datos_demo
 from proceso import analisis, esquema, pipeline
 from proceso.conexion import BaseNoDisponible, conectar
 from proceso.fuentes import FUENTES
-from web import correo, exportar_excel, tablero_datos
+from web import auditoria, correo, exportar_excel, tablero_datos
 from web import mfa
 from web.seguridad import (
     COOKIE_MFA,
@@ -195,18 +195,15 @@ def formulario_login(request: Request, error: str | None = None):
 def procesar_login(request: Request, email: str = Form(...), password: str = Form(...)):
     email_normalizado = email.strip().lower()
 
-    conexion = conectar(salir=False)
-    try:
-        cursor = conexion.cursor()
-        cursor.execute(
-            "SELECT id, password_hash FROM usuarios WHERE email = %s", (email_normalizado,)
+    usuario = mfa.cargar("email", email_normalizado)
+    if usuario is not None and mfa.clave_bloqueada(usuario):
+        return plantillas.TemplateResponse(
+            request, "login.html", {"error": mfa.MENSAJE_BLOQUEO}, status_code=429
         )
-        fila = cursor.fetchone()
-        cursor.close()
-    finally:
-        conexion.close()
 
-    if fila is None or not verificar_password(password, fila[1]):
+    if usuario is None or not verificar_password(password, usuario["password_hash"]):
+        if usuario is not None:
+            mfa.fallo_de_clave(usuario)
         return plantillas.TemplateResponse(
             request,
             "login.html",
@@ -215,10 +212,10 @@ def procesar_login(request: Request, email: str = Form(...), password: str = For
         )
 
     # La contraseña sola no abre sesión: falta el segundo paso.
-    usuario = mfa.cargar("id", fila[0])
+    mfa.clave_correcta(usuario)
     if mfa.preferido(usuario) == "correo":
         mfa.enviar_codigo(usuario)
-    return _pase_mfa(fila[0])
+    return _pase_mfa(usuario["id"])
 
 
 @app.post("/logout")
@@ -424,6 +421,12 @@ def _guardar_password(usuario_id: int, password_hash: str) -> None:
         conexion.close()
 
 
+def _clave_restablecida(usuario_id: int) -> None:
+    usuario = mfa.cargar("id", usuario_id)
+    if usuario is not None:
+        mfa.clave_restablecida(usuario)
+
+
 def _validar_nueva(password: str, confirmacion: str) -> tuple[str | None, str | None]:
     if password != confirmacion:
         return "La confirmación no coincide", None
@@ -446,6 +449,7 @@ def procesar_recuperar(request: Request, email: str = Form(...)):
     fila = _usuario("email", email)
     if fila is not None and _puede_enviar(email):
         enlace = f"{correo.URL_PUBLICA}/restablecer?token={crear_token_recuperacion(fila[0], fila[2])}"
+        auditoria.registrar(auditoria.RECUPERACION, {"id": fila[0]})
         correo.enviar(
             fila[1], "", "Restablece tu contraseña · Calidad de Afiliaciones",
             f"Hola,\n\nPara crear una contraseña nueva abre este enlace (vence en {RECUPERAR_MINUTOS} "
@@ -479,6 +483,7 @@ def procesar_restablecer(
             request, "restablecer.html", {"token": token, "error": error}, status_code=400
         )
     _guardar_password(fila[0], nuevo)
+    _clave_restablecida(fila[0])
     return plantillas.TemplateResponse(
         request, "login.html", {"exito": "Tu contraseña quedó actualizada. Ya puedes ingresar."}
     )
@@ -513,6 +518,7 @@ def cambiar_contrasena(
             request, "cuenta_contrasena.html", {"sesion": sesion, "email": sesion["email"], "error": error}, status_code=400
         )
     _guardar_password(fila[0], nuevo)
+    _clave_restablecida(fila[0])
     return plantillas.TemplateResponse(
         request, "cuenta_contrasena.html", {"sesion": sesion, "email": sesion["email"], "exito": "Tu contraseña quedó actualizada."}
     )

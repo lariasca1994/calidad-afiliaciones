@@ -280,6 +280,9 @@ Comprobado en el código del proyecto (`web/seguridad.py`, `web/main.py`, `proce
   entorno; el `.gitignore` bloquea cualquier CSV o `.xlsx` para que nunca se publiquen datos de
   afiliados. La única excepción es la plantilla del Excel descargable, que solo trae 3 filas
   inventadas: tus datos se escriben en el libro en memoria al descargarlo, nunca en el repositorio.
+- **Bloqueo temporal** ante intentos fallidos repetidos de contraseña o de código.
+- **Registro de eventos de seguridad:** ingresos, intentos fallidos, bloqueos y cambios de
+  contraseña quedan registrados (nunca contraseñas ni códigos) y se depuran solos.
 - **Al día en seguridad:** el runtime, el sistema y las dependencias se mantienen con los últimos
   parches y se revisan periódicamente.
 
