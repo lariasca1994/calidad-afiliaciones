@@ -80,6 +80,7 @@ jobs:
             --name "$APP" \
             --resource-group "$GRUPO" \
             --image "$IMAGEN:${{ github.sha }}" \
+            --cpu 0.25 --memory 0.5Gi \
             --set-env-vars \
               "BREVO_API_KEY=$BREVO_API_KEY" \
               "BREVO_REMITENTE=$BREVO_REMITENTE" \
