@@ -73,7 +73,7 @@ CARPETA_SALIDA_USUARIOS = RAIZ / "datos" / "salida_usuarios"
 
 # El botón genera una versión reducida (no la escala completa que usa
 # `python generador/datos_demo.py` por defecto): en Azure, cada inserción
-# es un viaje de red hacia Aiven (otra nube, otra región), y con la
+# es un viaje de red hacia TiDB Cloud (otra nube, otra región), y con la
 # escala completa la generación tarda varios minutos. A esta escala se
 # ven los mismos problemas de calidad (los genera el generador de forma
 # proporcional a cualquier tamaño), pero en segundos en vez de minutos.
@@ -155,8 +155,8 @@ def procesar_registro(
         # de que alguien la haya corrido a mano. CREATE TABLE IF NOT
         # EXISTS: no hace nada si ya existe. A propósito NO se hace esto
         # en un evento de arranque de la app: eso bloquearía el arranque
-        # entero a que la base responda (Aiven puede tardar en despertar
-        # si estaba dormida), y Azure Container Apps mata la revisión por
+        # entero a que la base responda (la primera conexión tras un rato
+        # sin uso tarda un poco más), y Azure Container Apps mata la revisión por
         # no volverse "Ready" a tiempo. Aquí, en cambio, ya hay una
         # conexión abierta para la propia solicitud de registro.
         esquema.crear(conexion, RAIZ / "sql" / "05_usuarios.sql")

@@ -79,7 +79,7 @@ Qué servicio de nube, base de datos o API usa el proyecto y para qué sirve cad
 | Plataforma | Tipo | Qué hace en el proyecto |
 |---|---|---|
 | ![Azure Container Apps](https://img.shields.io/badge/Azure_Container_Apps-0078D4?style=for-the-badge&logo=microsoftazure&logoColor=white) | Nube | Corre el panel web (FastAPI + Jinja2) y el mismo pipeline ETL que usa la consola. |
-| ![MySQL](https://img.shields.io/badge/MySQL-4479A1?style=for-the-badge&logo=mysql&logoColor=white) | Base de datos | Aiven aloja la base MySQL 8 con las seis fuentes, el consolidado y las cuentas del panel. Si está dormida, el proyecto la despierta con la API de Aiven antes de conectarse. |
+| ![MySQL](https://img.shields.io/badge/MySQL-4479A1?style=for-the-badge&logo=mysql&logoColor=white) | Base de datos | TiDB Cloud aloja la base compatible con MySQL 8 con las seis fuentes, el consolidado y las cuentas del panel; se reanuda sola con la primera conexión. |
 | ![Excel](https://img.shields.io/badge/Power_Query_%2F_Power_Pivot-217346?style=for-the-badge&logo=microsoftexcel&logoColor=white) | Formato de archivo | Se conecta directo a la tabla `consolidado` para armar tablas dinámicas. |
 | ![GitHub Actions](https://img.shields.io/badge/GitHub_Actions-181717?style=for-the-badge&logo=githubactions&logoColor=white) | Automatización | Construye la imagen Docker y la despliega en Azure. |
 | ![qa-evidencia](https://img.shields.io/badge/qa--evidencia-2EAD33?style=for-the-badge&logo=playwright&logoColor=white) | Pruebas automatizadas | Prueba la demo automáticamente y publica la evidencia. |
@@ -247,7 +247,7 @@ Tu confianza es lo primero: la plataforma solo pide los datos necesarios para fu
 
 | Dato | Para qué se usa | Dónde se guarda | Cómo se protege |
 |---|---|---|---|
-| Correo | Identificar tu cuenta | Tabla `usuarios` en MySQL (Aiven) | Solo lo ves tú; no se muestra a otras cuentas |
+| Correo | Identificar tu cuenta | Tabla `usuarios` en la base (TiDB Cloud) | Solo lo ves tú; no se muestra a otras cuentas |
 | Contraseña | Iniciar sesión | Tabla `usuarios`, **solo su huella** | Nunca se guarda en texto plano ni se puede recuperar |
 | Archivos CSV que subes | Calcular tus indicadores | Carpeta de tu cuenta en el contenedor y tablas de MySQL marcadas con tu `usuario_id` | Cada consulta filtra por tu cuenta |
 | Datos de ejemplo | Probar el panel | Igual que los archivos, marcados con tu `usuario_id` | Son sintéticos: no corresponden a personas reales |
@@ -271,7 +271,7 @@ Comprobado en el código del proyecto (`web/seguridad.py`, `web/main.py`, `proce
   evita la inyección SQL.
 - **Plantillas con escape automático** (Jinja2): lo que escribes se muestra como texto, no como
   código.
-- **Conexión cifrada a la base.** La conexión a MySQL usa TLS por defecto, y Aiven rechaza
+- **Conexión cifrada a la base.** La conexión a la base usa TLS por defecto, y TiDB Cloud rechaza
   conexiones sin cifrar.
 - **Carga controlada.** Solo se aceptan los 6 nombres de archivo esperados, con un máximo de 50 MB
   cada uno.

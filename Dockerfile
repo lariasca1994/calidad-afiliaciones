@@ -14,7 +14,7 @@ RUN if command -v apt-get > /dev/null; then \
 WORKDIR /app
 
 # ca-certificates: pymysql necesita poder validar la cadena de certificados
-# de Aiven cuando DB_SSL_CA apunta a uno; la imagen slim no lo trae.
+# de TiDB Cloud cuando DB_SSL_CA apunta a uno; la imagen slim no lo trae.
 RUN apt-get update && apt-get install -y --no-install-recommends \
         ca-certificates \
     && rm -rf /var/lib/apt/lists/*

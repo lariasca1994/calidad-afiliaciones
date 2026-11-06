@@ -1,8 +1,7 @@
 """Conexión con MySQL.
 
-Se usa PyMySQL y no mysql-connector-python porque el servicio de Aiven
-corre MariaDB, cuyo protocolo el conector oficial de MySQL no admite
-(falla con "Protocol mismatch"). PyMySQL habla ambos protocolos.
+La base vive en TiDB Cloud (compatible con MySQL 8) y se usa PyMySQL,
+un conector en Python puro que no necesita librerías del sistema.
 
 Toda la configuración viene del .env. No hay valores por defecto para
 credenciales: si falta alguno, el script se detiene con un mensaje claro
@@ -44,7 +43,7 @@ def _leer_configuracion() -> dict:
         "connect_timeout": 30,
         # Sin esto, una consulta que se queda a medias por un corte de
         # red (frecuente cuando el servidor de la app y el de la base
-        # están en nubes/regiones distintas, como Azure y Aiven aquí) se
+        # están en nubes/regiones distintas, como Azure y TiDB Cloud aquí) se
         # queda esperando una respuesta que nunca llega — sin error, sin
         # log, indefinidamente. connect_timeout solo cubre el saludo
         # inicial de la conexión; read/write_timeout cubren cada
@@ -136,28 +135,18 @@ def conectar(salir: bool = True):
     Con salir=False (uso desde la web) no termina el proceso: lanza
     BaseNoDisponible y el panel muestra la página de mantenimiento.
 
-    Primero reutiliza una conexión libre; si no hay, abre una. Solo si la
-    base no responde y el .env tiene configurado el encendido automático
-    (ver aiven_control.py), consulta a Aiven, enciende el servicio si está
-    apagado y reintenta una vez. Antes se consultaba a Aiven en cada
-    petición, lo que sumaba segundos a cada página.
+    Primero reutiliza una conexión libre; si no hay, abre una. TiDB Cloud
+    no se apaga por falta de uso (se reanuda solo con la primera conexión),
+    así que no hace falta encender nada antes de conectar.
     """
     libre = _libre_sana()
     if libre is not None:
         return ConexionPrestada(libre)
 
-    from proceso import aiven_control
-
     config = _leer_configuracion()
 
     try:
-        try:
-            conexion = pymysql.connect(**config)
-        except pymysql.Error:
-            if not aiven_control.configurado():
-                raise
-            aiven_control.asegurar_encendido()
-            conexion = pymysql.connect(**config)
+        conexion = pymysql.connect(**config)
     except pymysql.Error as error:
         print(f"No se pudo conectar a {config['host']}:{config['port']}")
         print(f"  {error}")

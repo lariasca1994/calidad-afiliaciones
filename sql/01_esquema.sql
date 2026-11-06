@@ -21,7 +21,7 @@
 -- las filas del usuario que esta cargando.
 -- =====================================================================
 
--- Aiven entrega la base ya creada, asi que no se usa CREATE DATABASE.
+-- La base se crea al preparar el servicio (TiDB Cloud), asi que aqui no se usa CREATE DATABASE.
 --
 -- Nota: cada tabla salvo HOMOLOGACION_DOCUMENTOS lleva una clave primaria
 -- tecnica (fila_id). No forma parte del modelo de negocio: los servicios

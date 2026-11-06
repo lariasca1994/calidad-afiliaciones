@@ -87,3 +87,34 @@ jobs:
               "URL_PUBLICA=$URL_PUBLICA" \
             --only-show-errors \
             --query "properties.latestRevisionName" -o tsv
+
+      # Base de datos (TiDB Cloud): host, puerto, usuario, contraseña y base
+      # vienen de los secretos del repositorio; la contraseña queda como
+      # secreto de la Container App. Sin esos secretos este paso no cambia nada.
+      # También retira las variables del proveedor anterior.
+      - name: Configurar la base de datos
+        env:
+          DB_HOST: ${{ secrets.DB_HOST }}
+          DB_PORT: ${{ secrets.DB_PORT }}
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          DB_NAME: ${{ secrets.DB_NAME }}
+        run: |
+          if [ -z "$DB_HOST" ] || [ -z "$DB_PASSWORD" ]; then
+            echo "Sin secretos DB_*: se conserva la configuración de base actual."
+            exit 0
+          fi
+          az containerapp secret set --name "$APP" --resource-group "$GRUPO" \
+            --secrets "db-password=$DB_PASSWORD" --only-show-errors -o none
+          viejas=$(az containerapp show --name "$APP" --resource-group "$GRUPO" \
+            --query "properties.template.containers[0].env[?starts_with(name, 'AIVEN_')].name" -o tsv | tr '\n' ' ')
+          az containerapp update --name "$APP" --resource-group "$GRUPO" \
+            --set-env-vars "DB_HOST=$DB_HOST" "DB_PORT=$DB_PORT" "DB_USER=$DB_USER" \
+              "DB_NAME=$DB_NAME" "DB_SSL=true" "DB_PASSWORD=secretref:db-password" \
+            ${viejas:+--remove-env-vars $viejas} \
+            --only-show-errors --query "properties.latestRevisionName" -o tsv
+          for s in $(az containerapp secret list --name "$APP" --resource-group "$GRUPO" \
+              --query "[?starts_with(name, 'aiven')].name" -o tsv); do
+            az containerapp secret remove --name "$APP" --resource-group "$GRUPO" \
+              --secret-names "$s" --only-show-errors -o none
+          done

@@ -147,7 +147,7 @@ setup.py                    Comando único
 ## 3. Arquitectura
 
 <p align="center">
-  <img src="docs/arquitectura.svg" alt="Diagrama de arquitectura: panel web con tablero en Chart.js y exportación a Excel con modelo de datos y medidas DAX, en Azure Container Apps; MySQL gestionado en Aiven; consola local con generador de escenarios; Excel con Power Query y despliegue con GitHub Actions" width="100%">
+  <img src="docs/arquitectura.svg" alt="Diagrama de arquitectura: panel web con tablero en Chart.js y exportación a Excel con modelo de datos y medidas DAX, en Azure Container Apps; base compatible con MySQL en TiDB Cloud; consola local con generador de escenarios; Excel con Power Query y despliegue con GitHub Actions" width="100%">
 </p>
 
 - El panel web (FastAPI + Jinja2) corre el mismo pipeline ETL que usa la consola;
@@ -177,7 +177,7 @@ vertical en cinco fuentes, punto y coma en la radicación histórica—.
 | Plataforma | Función en el proyecto |
 |---|---|
 | ![Azure Container Apps](https://img.shields.io/badge/Azure_Container_Apps-0078D4?style=for-the-badge&logo=microsoftazure&logoColor=white) | Corre el panel web (FastAPI + Jinja2) y el mismo pipeline ETL que usa la consola. |
-| ![MySQL](https://img.shields.io/badge/MySQL-4479A1?style=for-the-badge&logo=mysql&logoColor=white) | Aiven aloja la base MySQL 8 con las seis fuentes, el consolidado y las cuentas del panel. Si está dormida, el proyecto la despierta con la API de Aiven antes de conectarse. |
+| ![MySQL](https://img.shields.io/badge/MySQL-4479A1?style=for-the-badge&logo=mysql&logoColor=white) | TiDB Cloud aloja la base compatible con MySQL 8 con las seis fuentes, el consolidado y las cuentas del panel; se reanuda sola con la primera conexión. |
 | ![Excel](https://img.shields.io/badge/Power_Query_%2F_Power_Pivot-217346?style=for-the-badge&logo=microsoftexcel&logoColor=white) | Se conecta directo a la tabla `consolidado` para armar tablas dinámicas. |
 | ![GitHub Actions](https://img.shields.io/badge/GitHub_Actions-181717?style=for-the-badge&logo=githubactions&logoColor=white) | Construye la imagen Docker y la despliega en Azure. |
 | ![qa-evidencia](https://img.shields.io/badge/qa--evidencia-2EAD33?style=for-the-badge&logo=playwright&logoColor=white) | Prueba la demo automáticamente y publica la evidencia. |
@@ -333,7 +333,7 @@ cada uno se deduce del esquema en `sql/01_esquema.sql`.
 
 Excel se conecta directamente a la tabla `consolidado` en la base de datos, no
 a los CSV: cada vez que se actualiza el libro, trae lo último que haya en
-Aiven.
+la base (TiDB Cloud).
 
 #### 1. Instalar el conector
 
@@ -365,14 +365,14 @@ En la ventana de conexión:
 En la siguiente pantalla aparece un panel a la izquierda con varias pestañas
 apiladas: **Windows**, **Base de datos**, **Cuenta Microsoft**. Por defecto
 suele quedar seleccionada **Windows**, que intenta autenticar contra el
-sistema operativo y nunca va a funcionar contra Aiven, sin importar cuántas
+sistema operativo y nunca va a funcionar contra la base, sin importar cuántas
 veces se reintente con la contraseña correcta.
 
 **Hay que cambiar explícitamente a la pestaña "Base de datos"** (a veces
 aparece como *Basic*). Ahí sí aparecen los campos de usuario y contraseña —los
 mismos `DB_USER` y `DB_PASSWORD` del `.env`—, y una opción de nivel de
-cifrado, que debe quedar en la que exige SSL/TLS: Aiven no acepta conexiones
-sin cifrar.
+cifrado, que debe quedar en la que exige SSL/TLS: TiDB Cloud no acepta
+conexiones sin cifrar.
 
 Si tras cambiar de pestaña Excel sigue mostrando el error de credenciales aun
 con los datos correctos, es casi siempre caché: **Datos → Obtener datos →
@@ -380,18 +380,7 @@ Configuración del origen de datos**, localizar la entrada del servidor,
 **Editar permisos → Borrar permisos**, y volver a intentar la conexión desde
 cero.
 
-#### 4. Antes de conectar, comprobar que el servicio esté encendido
-
-Excel no tiene el despertador automático que sí tiene `setup.py`. Si el
-servicio lleva un rato sin uso, hay que despertarlo antes:
-
-```bash
-python setup.py --solo-analisis
-```
-
-O entrar un momento al panel de Aiven.
-
-#### 5. El modelo
+#### 4. El modelo
 
 Una vez conectada la consulta, **Agregar al modelo de datos** desde Power
 Query la incorpora a Power Pivot. Desde ahí, tabla dinámica con `periodo` en
@@ -479,26 +468,6 @@ uvicorn web.main:app --reload --port 8400
 ```
 
 Abre `http://localhost:8400` y crea tu cuenta desde **Crear cuenta**.
-
-### Encendido automático (opcional)
-
-Aiven apaga el servicio tras un periodo de inactividad.
-Encenderlo de nuevo no es instantáneo: Aiven restaura el último respaldo, lo
-que puede tardar desde un par de minutos hasta bastante más, según el tamaño
-de los datos.
-
-Completando estas variables en el `.env`, el proyecto verifica el estado antes
-de conectar y lo enciende solo si hace falta, esperando a que quede listo:
-
-```
-AIVEN_API_TOKEN=
-AIVEN_PROJECT_NAME=
-AIVEN_SERVICE_NAME=
-```
-
-El token se genera en el panel de Aiven, en el menú de tu usuario → *Personal
-tokens* → *Generate token*. Sin estas variables, el proyecto funciona igual;
-solo hay que encender el servicio a mano cuando esté apagado.
 
 ---
 
