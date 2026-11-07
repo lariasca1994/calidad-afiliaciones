@@ -124,7 +124,8 @@ qué correos están registrados.
 
 1. En el inicio de sesión pulsa **¿Olvidaste tu contraseña?** y escribe el correo de tu cuenta.
 2. El panel responde siempre lo mismo, exista o no la cuenta, para no revelar qué correos están
-   registrados. Si existe, llega un correo con el enlace **Crear contraseña nueva**.
+   registrados. Si existe, llega un correo del remitente «Calidad de afiliaciones» con el enlace
+   **Crear contraseña nueva**.
 3. El enlace vence en 30 minutos y sirve una sola vez. Escribe la nueva contraseña (mínimo 8
    caracteres) y su confirmación, y vuelve a iniciar sesión.
 4. Al guardarla se cierran todas las sesiones abiertas con la contraseña anterior (en cualquier

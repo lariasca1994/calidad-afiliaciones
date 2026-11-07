@@ -7,11 +7,15 @@ import html
 import json
 import logging
 import urllib.request
+from email.utils import parseaddr
 
 import os
 
 BREVO_API_KEY = os.getenv("BREVO_API_KEY", "").strip()
-BREVO_REMITENTE = os.getenv("BREVO_REMITENTE", "").strip()
+# Solo la dirección: si el secreto trae "Nombre <correo>", el nombre se ignora y el remitente
+# siempre se muestra con el nombre descriptivo del portal.
+BREVO_REMITENTE = parseaddr(os.getenv("BREVO_REMITENTE", "").strip())[1]
+NOMBRE_REMITENTE = "Calidad de afiliaciones"
 # URL pública para armar enlaces; en producción llega desde GitHub (workflow).
 URL_PUBLICA = os.getenv("URL_PUBLICA", "http://127.0.0.1:8000").rstrip("/")
 
@@ -53,7 +57,7 @@ def enviar(destino: str, nombre: str, asunto: str, texto: str, html: str) -> boo
         logger.info("[correo local] Para %s | %s\n%s", destino, asunto, texto)
         return False
     cuerpo = json.dumps({
-        "sender": {"email": BREVO_REMITENTE, "name": "Calidad de afiliaciones"},
+        "sender": {"email": BREVO_REMITENTE, "name": NOMBRE_REMITENTE},
         "to": [{"email": destino, "name": nombre}],
         "subject": asunto,
         "textContent": texto,

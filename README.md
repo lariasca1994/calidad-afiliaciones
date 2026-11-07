@@ -42,6 +42,7 @@ pueda confiar.
   marcas de calidad para cada registro.
 - **Para quién:** equipos de calidad u operación de una EPS que necesitan saber
   cuántas afiliaciones reales hubo y qué problemas tienen los datos.
+- **Correos:** llegan con el remitente «Calidad de afiliaciones».
 - **Seguridad:** verificación en dos pasos obligatoria, bloqueo temporal ante intentos fallidos
   repetidos y registro de eventos de seguridad (ingresos, intentos fallidos, bloqueos y cambios
   de contraseña).

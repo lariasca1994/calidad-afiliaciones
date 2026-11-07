@@ -279,3 +279,17 @@ def test_clave_de_cifrado_totp_sin_cambios():
     clave = HKDF(algorithm=hashes.SHA256(), length=32, salt=None,
                  info=b"CalidadAfiliaciones.MFA.v1").derive(seguridad.JWT_SECRET.encode("utf-8"))
     assert mfa._clave == clave
+
+
+def test_remitente_ignora_el_nombre_del_secreto(monkeypatch):
+    # Si BREVO_REMITENTE trae "Nombre <correo>", se usa solo la dirección y el nombre descriptivo.
+    import importlib
+
+    monkeypatch.setenv("BREVO_REMITENTE", "Calidad de Afiliaciones <remitente@ejemplo.com>")
+    modulo = importlib.reload(correo)
+    try:
+        assert modulo.BREVO_REMITENTE == "remitente@ejemplo.com"
+        assert modulo.NOMBRE_REMITENTE == NOMBRE
+    finally:
+        monkeypatch.undo()  # vuelve el valor original antes de recargar
+        importlib.reload(correo)
