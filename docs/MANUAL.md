@@ -126,13 +126,16 @@ qué correos están registrados.
    registrados. Si existe, llega un correo con el enlace **Crear contraseña nueva**.
 3. El enlace vence en 30 minutos y sirve una sola vez. Escribe la nueva contraseña (mínimo 8
    caracteres) y su confirmación, y vuelve a iniciar sesión.
+4. Al guardarla se cierran todas las sesiones abiertas con la contraseña anterior (en cualquier
+   equipo). Tu verificación en dos pasos no cambia: al ingresar te pedirá el código de siempre.
 
 Se pueden pedir como máximo 3 enlaces cada 15 minutos por correo; pedirlos no bloquea el ingreso.
 
 ### 4.3.2 Cambiar la contraseña
 
 Con la sesión iniciada, pulsa **Contraseña** en la barra superior. Escribe la contraseña actual,
-la nueva (mínimo 8 caracteres y distinta de la actual) y su confirmación.
+la nueva (mínimo 8 caracteres y distinta de la actual) y su confirmación. Tu sesión sigue
+abierta y se cierran las que tuvieras en otros equipos.
 
 ### 4.3.3 Verificación en dos pasos (obligatoria)
 
@@ -147,6 +150,20 @@ cuenta) eliges cómo recibirlo:
 Confirma el método escribiendo el primer código. Desde **Seguridad** (barra superior) puedes
 **agregar el método que no elegiste** y escoger cuál se pide **por defecto**; tener los dos te
 permite entrar aunque no tengas el teléfono a mano.
+
+### 4.3.4 Perdí mi autenticador
+
+Si cambiaste o perdiste el teléfono con la app autenticadora:
+
+1. Inicia sesión con tu correo y contraseña. En la pantalla **Escribe tu código** pulsa
+   **Perdí mi autenticador** (siempre está visible).
+2. Llega al correo de tu cuenta un código de 6 dígitos, aunque no hayas activado el método por
+   correo. Vence en 15 minutos y sirve una sola vez; si no llega, pulsa **Enviar otro código**.
+3. Escríbelo y pulsa **Continuar**. Antes de entrar debes escanear el código QR nuevo con tu app
+   y escribir el primer código: la app nueva reemplaza a la anterior, que deja de servir.
+
+Se pueden pedir pocos códigos seguidos y, tras varios códigos errados, la recuperación queda
+bloqueada unos minutos.
 
 ### 4.4 Tablero de indicadores
 
@@ -252,7 +269,7 @@ Tu confianza es lo primero: la plataforma solo pide los datos necesarios para fu
 | Archivos CSV que subes | Calcular tus indicadores | Carpeta de tu cuenta en el contenedor y tablas de MySQL marcadas con tu `usuario_id` | Cada consulta filtra por tu cuenta |
 | Datos de ejemplo | Probar el panel | Igual que los archivos, marcados con tu `usuario_id` | Son sintéticos: no corresponden a personas reales |
 | Verificación en dos pasos | Confirmar que eres tú al ingresar | Tabla `usuarios`, columna `mfa`: clave de la app **cifrada** y código del correo **solo como huella** | Nadie: no se puede leer desde la base |
-| Sesión | Mantenerte conectado | Cookie `sesion` en tu navegador | Firmada e invisible para JavaScript; vence sola |
+| Sesión | Mantenerte conectado | Cookie `sesion` en tu navegador | Firmada e invisible para JavaScript; vence sola y deja de valer si cambias la contraseña |
 
 ### Cómo se protege tu información
 
@@ -263,7 +280,11 @@ Comprobado en el código del proyecto (`web/seguridad.py`, `web/main.py`, `proce
   bloquean temporalmente y el código del correo vence en pocos minutos.
 - **Contraseñas protegidas.** Solo se guarda la huella; ni el administrador puede ver tu
   contraseña.
-- **Sesión en una cookie segura** que vence sola. **Salir** la borra.
+- **Sesión en una cookie segura** que vence sola. **Salir** la borra, y cambiar o restablecer la
+  contraseña cierra las sesiones abiertas.
+- **Recuperación segura:** el enlace de **¿Olvidaste tu contraseña?** vence y sirve una sola vez,
+  y **Perdí mi autenticador** exige la contraseña y un código enviado al correo de la cuenta antes
+  de registrar una app nueva.
 - **Aislamiento por cuenta.** Todas las tablas llevan `usuario_id` y cada consulta, carga o
   exportación se limita a tu cuenta: dos cuentas nunca ven ni mezclan sus datos, aunque generen
   datos al mismo tiempo.

@@ -1,5 +1,5 @@
 {% extends "acceso_base.html" %}
-{% block titulo %}Verificación en dos pasos — Calidad de Afiliaciones{% endblock %}
+{% block titulo %}Verificación en dos pasos — Calidad de afiliaciones{% endblock %}
 {% block paso %}Un paso más{% endblock %}
 {% block titulo_form %}Escribe tu código{% endblock %}
 {% block subtitulo %}{% if metodo == 'totp' %}Abre tu app autenticadora y escribe el código de 6 dígitos.{% else %}Te enviamos un código de 6 dígitos a {{ correo_usuario }}. Vence en 10 minutos.{% endif %}{% endblock %}
@@ -20,5 +20,6 @@
 {% elif otro == 'totp' %}
 <p class="alterno"><a href="/verificacion?metodo=totp">Usar la app autenticadora</a></p>
 {% endif %}
+<form method="post" action="/verificacion/perdi-autenticador"><button type="submit" class="enlace-boton">Perdí mi autenticador</button></form>
 <p class="alterno"><a href="/login">Volver a iniciar sesión</a></p>
 {% endblock %}

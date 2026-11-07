@@ -1,0 +1,16 @@
+{% extends "acceso_base.html" %}
+{% block titulo %}Perdí mi autenticador — Calidad de afiliaciones{% endblock %}
+{% block paso %}Perdí mi autenticador{% endblock %}
+{% block titulo_form %}Revisa tu correo{% endblock %}
+{% block subtitulo %}Escribe el código de 6 dígitos que enviamos a {{ correo_usuario }}. Vence en {{ minutos }} minutos. Después configurarás tu nueva app autenticadora.{% endblock %}
+{% block formulario %}
+<form method="post" action="/verificacion/perdi-autenticador/verificar" class="formulario">
+    <div class="campo">
+        <label for="codigo">Código de 6 dígitos</label>
+        <input type="text" id="codigo" name="codigo" required inputmode="numeric" pattern="[0-9 ]{6,7}" maxlength="7" autocomplete="one-time-code" autofocus />
+    </div>
+    <button type="submit" class="boton">Continuar</button>
+</form>
+<form method="post" action="/verificacion/perdi-autenticador"><button type="submit" class="enlace-boton">Enviar otro código</button></form>
+<p class="alterno"><a href="/verificacion">Volver</a></p>
+{% endblock %}

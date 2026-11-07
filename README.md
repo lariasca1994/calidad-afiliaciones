@@ -208,9 +208,18 @@ vertical en cinco fuentes, punto y coma en la radicación histórica—.
 
 1. En el inicio de sesión pulsa **¿Olvidaste tu contraseña?** y escribe tu correo. Si la cuenta
    existe, llega un enlace (API de Brevo) que vence en 30 minutos y sirve una sola vez; la respuesta
-   es la misma exista o no la cuenta.
+   es la misma exista o no la cuenta. El enlace pide solo la nueva contraseña y su confirmación; al
+   guardarla se cierran todas las sesiones abiertas y la verificación en dos pasos sigue activa.
 2. Con la sesión iniciada, **Contraseña** (barra superior) cambia la contraseña: pide la actual y la nueva (mínimo
-   8 caracteres).
+   8 caracteres). Se cierran las demás sesiones abiertas.
+
+#### Perdí mi autenticador
+
+1. En la pantalla del código pulsa **Perdí mi autenticador**: llega al correo de la cuenta un código
+   de 6 dígitos que vence en 15 minutos, aunque el método por correo no esté activado.
+2. Escríbelo y pulsa **Continuar**. Antes de entrar, el panel obliga a escanear un código QR nuevo:
+   la app autenticadora nueva reemplaza a la anterior.
+3. Hay un tope de envíos y, tras varios códigos errados, la recuperación se bloquea unos minutos.
 
 #### Cargar datos
 
@@ -468,6 +477,18 @@ uvicorn web.main:app --reload --port 8400
 ```
 
 Abre `http://localhost:8400` y crea tu cuenta desde **Crear cuenta**.
+
+### Pruebas automáticas
+
+Las pruebas del acceso (recuperación de contraseña, **Perdí mi autenticador**, cierre de sesiones
+y nombre visible en páginas, correos y QR) no usan la base ni envían correos:
+
+```bash
+pip install pytest
+python -m pytest -q tests
+```
+
+El despliegue las corre antes de publicar la imagen: si alguna falla, no se publica.
 
 ---
 

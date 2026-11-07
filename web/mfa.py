@@ -11,6 +11,12 @@ Cada cuenta usa al menos uno de dos metodos y puede tener ambos:
     hasta 3 envios cada 10 minutos. Tras 5 codigos de la app errados, la app
     queda bloqueada 15 minutos.
 
+"Perdí mi autenticador": tras la contraseña, se envía al correo de la cuenta
+(aunque el método correo no esté activo) un código de 6 dígitos que vence en
+15 minutos; hasta 3 envíos cada 15 minutos y, tras 5 códigos errados, la
+recuperación queda bloqueada 15 minutos. Al validarlo, el ingreso obliga a
+configurar una app autenticadora nueva, que reemplaza a la anterior.
+
 Todo vive en la columna JSON "mfa" de la tabla usuarios (MySQL); el usuario se
 maneja como diccionario con id, email y mfa.
 """
@@ -34,7 +40,7 @@ from proceso.conexion import conectar
 from web import auditoria, correo
 from web.seguridad import JWT_SECRET
 
-EMISOR = "Calidad de Afiliaciones"
+EMISOR = "Calidad de afiliaciones"
 METODOS = {"totp": "App autenticadora", "correo": "Código por correo"}
 _PASO = 30
 _CODIGO_MINUTOS = 10
@@ -260,6 +266,80 @@ def _verificar_metodo(usuario, metodo: str, codigo: str) -> bool:
                  if fallos >= _MAX_INTENTOS else {"fallos": fallos})
         return False
     return _verificar_correo(usuario, codigo)
+
+
+# ───────────────────────── perdí mi autenticador ──────────────────────────
+
+RECUPERAR_MINUTOS = 15
+_RECUPERAR_MAX_ENVIOS = 3
+_RECUPERAR_BLOQUEO_SEG = 15 * 60
+
+
+def recuperacion_bloqueada(usuario) -> bool:
+    return estado(usuario).get("recup_bloqueo_hasta", 0) > time.time()
+
+
+def enviar_codigo_recuperacion(usuario) -> str:
+    """Envía al correo de la cuenta un código para reemplazar la app autenticadora.
+    Devuelve "ok", "limite" (demasiados envíos seguidos) o "bloqueo"."""
+    if recuperacion_bloqueada(usuario):
+        return "bloqueo"
+    ahora = time.time()
+    envios = [t for t in estado(usuario).get("recup_envios", []) if ahora - t < RECUPERAR_MINUTOS * 60]
+    if len(envios) >= _RECUPERAR_MAX_ENVIOS:
+        return "limite"
+    codigo = f"{secrets.randbelow(1_000_000):06d}"
+    _guardar(usuario, {
+        "recup": {"huella": _huella("recup:" + codigo), "expira": ahora + RECUPERAR_MINUTOS * 60},
+        "recup_envios": envios + [ahora],
+    })
+    auditoria.registrar(auditoria.RECUPERACION_MFA, usuario)
+    correo.enviar(
+        usuario["email"], "", f"Código para recuperar tu acceso · {EMISOR}",
+        f"Hola,\n\nPediste ingresar sin tu app autenticadora en {EMISOR}. Tu código es: {codigo}\n\n"
+        f"Vence en {RECUPERAR_MINUTOS} minutos y sirve una sola vez. Al usarlo configurarás una app "
+        "autenticadora nueva y la anterior dejará de servir.\n\n"
+        "Si no fuiste tú, no compartas este código y cambia tu contraseña.",
+        f"<p>Hola,</p><p>Pediste ingresar sin tu app autenticadora en <strong>{EMISOR}</strong>. Tu código es:</p>"
+        f'<p style="font-size:28px;font-weight:700;letter-spacing:6px">{codigo}</p>'
+        f"<p>Vence en {RECUPERAR_MINUTOS} minutos y sirve una sola vez. Al usarlo configurarás una app "
+        "autenticadora nueva y la anterior dejará de servir.</p>"
+        "<p>Si no fuiste tú, no compartas este código y cambia tu contraseña.</p>",
+    )
+    return "ok"
+
+
+def verificar_recuperacion(usuario, codigo: str) -> bool:
+    """Comprueba el código de "Perdí mi autenticador". Cinco errados seguidos
+    bloquean la recuperación un tiempo y anulan el código enviado."""
+    if recuperacion_bloqueada(usuario):
+        return False
+    guardado = estado(usuario).get("recup")
+    if not guardado or guardado["expira"] < time.time():
+        return False
+    if hmac.compare_digest(guardado["huella"], _huella("recup:" + _limpiar(codigo))):
+        _guardar(usuario, {"recup": None, "recup_fallos": 0})
+        return True
+    fallos = estado(usuario).get("recup_fallos", 0) + 1
+    if fallos >= _MAX_INTENTOS:
+        _guardar(usuario, {"recup": None, "recup_fallos": 0,
+                           "recup_bloqueo_hasta": time.time() + _RECUPERAR_BLOQUEO_SEG})
+        auditoria.registrar(auditoria.RECUPERACION_MFA_BLOQUEADA, usuario)
+    else:
+        _guardar(usuario, {"recup_fallos": fallos})
+    auditoria.registrar(auditoria.CODIGO_ERRADO, usuario)
+    return False
+
+
+def reemplazar_totp(usuario, codigo: str) -> bool:
+    """Tras la recuperación: la app nueva reemplaza a la anterior y queda por defecto."""
+    pendiente = estado(usuario).get("totp_pendiente")
+    if not _verificar_totp(usuario, pendiente, _limpiar(codigo)):
+        return False
+    _guardar(usuario, {"totp": pendiente, "totp_pendiente": None, "preferido": "totp",
+                       "fallos": 0, "bloqueo_hasta": 0})
+    auditoria.registrar(auditoria.AUTENTICADOR_REEMPLAZADO, usuario)
+    return True
 
 
 def elegir_preferido(usuario, metodo: str) -> bool:

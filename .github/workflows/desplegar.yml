@@ -34,6 +34,19 @@ jobs:
       - name: Descargar el repositorio
         uses: actions/checkout@v4
 
+      # Pruebas del acceso (recuperacion de contrasena, "Perdi mi autenticador",
+      # nombre visible). Sin base ni correo reales; si fallan, no se publica.
+      - name: Preparar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Pruebas
+        run: |
+          pip install -r requirements.txt pytest
+          python -m pytest -q tests
+
       - name: Iniciar sesion en GHCR
         uses: docker/login-action@v3
         with:

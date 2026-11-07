@@ -40,10 +40,10 @@ def documento(asunto: str, contenido: str) -> str:
         f'<tr><td style="background:{c["cabecera"]};border-top:4px solid {c["acento"]};padding:16px 28px;">'
         f'<img src="{URL_PUBLICA}/static/iconos/apple-touch-icon.png" width="28" height="28" alt="" '
         'style="vertical-align:middle;border:0;border-radius:6px;margin-right:10px;">'
-        f'<span style="vertical-align:middle;font-size:17px;font-weight:700;color:{c["cabecera_texto"]};">Calidad de Afiliaciones</span></td></tr>'
+        f'<span style="vertical-align:middle;font-size:17px;font-weight:700;color:{c["cabecera_texto"]};">Calidad de afiliaciones</span></td></tr>'
         f'<tr><td style="padding:24px 28px 12px;font-size:15px;line-height:1.6;color:{c["texto"]};">{contenido}</td></tr>'
         f'<tr><td style="padding:16px 28px 22px;border-top:1px solid {c["borde"]};font-size:12px;line-height:1.5;color:{c["suave"]};">'
-        "Correo automático de Calidad de Afiliaciones. Si no esperabas este mensaje, puedes ignorarlo.</td></tr>"
+        "Correo automático de Calidad de afiliaciones. Si no esperabas este mensaje, puedes ignorarlo.</td></tr>"
         "</table></td></tr></table></body></html>"
     )
 
@@ -53,7 +53,7 @@ def enviar(destino: str, nombre: str, asunto: str, texto: str, html: str) -> boo
         logger.info("[correo local] Para %s | %s\n%s", destino, asunto, texto)
         return False
     cuerpo = json.dumps({
-        "sender": {"email": BREVO_REMITENTE, "name": "Calidad de Afiliaciones"},
+        "sender": {"email": BREVO_REMITENTE, "name": "Calidad de afiliaciones"},
         "to": [{"email": destino, "name": nombre}],
         "subject": asunto,
         "textContent": texto,

@@ -1,9 +1,13 @@
 {% extends "acceso_base.html" %}
-{% block titulo %}Verificación en dos pasos — Calidad de Afiliaciones{% endblock %}
-{% block paso %}Un paso más{% endblock %}
-{% block titulo_form %}{{ metodos[metodo] }}{% endblock %}
-{% block subtitulo %}Confirma el método con un código para terminar de ingresar.{% endblock %}
+{% block titulo %}Verificación en dos pasos — Calidad de afiliaciones{% endblock %}
+{% block paso %}{% if recuperacion %}Perdí mi autenticador{% else %}Un paso más{% endif %}{% endblock %}
+{% block titulo_form %}{% if recuperacion %}Configura tu nueva app autenticadora{% else %}{{ metodos[metodo] }}{% endif %}{% endblock %}
+{% block subtitulo %}{% if recuperacion %}Para terminar de ingresar escanea el código QR con tu app; la app anterior dejará de servir.{% else %}Confirma el método con un código para terminar de ingresar.{% endif %}{% endblock %}
 {% block formulario %}
 {% include "_mfa_activar.html" %}
+{% if recuperacion %}
+<p class="alterno"><a href="/login">Cancelar e iniciar sesión de nuevo</a></p>
+{% else %}
 <p class="alterno"><a href="/verificacion">Elegir otro método</a></p>
+{% endif %}
 {% endblock %}
