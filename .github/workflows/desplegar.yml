@@ -44,7 +44,7 @@ jobs:
 
       - name: Pruebas
         run: |
-          pip install -r requirements.txt pytest
+          pip install -r requirements.txt pytest httpx
           python -m pytest -q tests
 
       - name: Iniciar sesion en GHCR

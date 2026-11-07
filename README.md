@@ -484,7 +484,7 @@ Las pruebas del acceso (recuperación de contraseña, **Perdí mi autenticador**
 y nombre visible en páginas, correos y QR) no usan la base ni envían correos:
 
 ```bash
-pip install pytest
+pip install pytest httpx
 python -m pytest -q tests
 ```
 

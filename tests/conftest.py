@@ -2,6 +2,7 @@
 visible) sin base de datos ni correo reales: las cuentas viven en un diccionario
 en memoria y los correos se guardan en una lista."""
 
+import asyncio
 import copy
 import os
 import sys
@@ -14,7 +15,7 @@ sys.path.insert(0, str(RAIZ))
 os.chdir(RAIZ)  # la app monta web/static y web/templates con rutas relativas
 os.environ.setdefault("JWT_SECRET", "secreto-solo-para-pruebas")
 
-from fastapi.testclient import TestClient  # noqa: E402
+import httpx  # noqa: E402
 
 from web import auditoria, correo, main, mfa, seguridad  # noqa: E402
 
@@ -77,6 +78,32 @@ def base(monkeypatch):
     return falsa
 
 
+class Cliente:
+    """Navegador de prueba: llama a la app directamente (httpx + ASGI), sin red y sin el
+    cliente de pruebas de Starlette, así funciona con cualquier versión de Starlette."""
+
+    def __init__(self, app):
+        self._bucle = asyncio.new_event_loop()
+        self._cliente = httpx.AsyncClient(transport=httpx.ASGITransport(app=app),
+                                          base_url="http://testserver", follow_redirects=False)
+
+    @property
+    def cookies(self):
+        return self._cliente.cookies
+
+    def get(self, url, **kwargs):
+        return self._bucle.run_until_complete(self._cliente.get(url, **kwargs))
+
+    def post(self, url, **kwargs):
+        return self._bucle.run_until_complete(self._cliente.post(url, **kwargs))
+
+    def cerrar(self):
+        self._bucle.run_until_complete(self._cliente.aclose())
+        self._bucle.close()
+
+
 @pytest.fixture
 def cliente(base):
-    return TestClient(main.app, follow_redirects=False)
+    navegador = Cliente(main.app)
+    yield navegador
+    navegador.cerrar()
