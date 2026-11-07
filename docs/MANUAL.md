@@ -114,7 +114,8 @@ El registro es libre y no requiere aprobación. Si el correo ya existe, el panel
 |:-:|---|---|
 | 1 | Correo | El correo de tu cuenta |
 | 2 | Contraseña | Tu contraseña |
-| 3 | Entrar | Pide el código de tu verificación en dos pasos; al escribirlo y pulsar **Verificar** se abre tu tablero |
+| 3 | Entrar | Pide el código de tu verificación en dos pasos (ver 4.3.3) |
+| 4 | ¿Olvidaste tu contraseña? | Enlace para crear una contraseña nueva (ver 4.3.1) |
 
 Si el correo o la contraseña no coinciden, el mensaje es el mismo en ambos casos, para no revelar
 qué correos están registrados.
@@ -147,7 +148,17 @@ cuenta) eliges cómo recibirlo:
 | **App autenticadora** (recomendado) | Escaneas un código QR con Google Authenticator, Microsoft Authenticator u otra app; desde ese momento la app muestra un código nuevo cada 30 segundos, incluso sin internet. Si no puedes escanear, escribe la clave que aparece bajo el QR. |
 | **Código por correo** | Cada vez que ingresas te llega un código de 6 dígitos que vence en 10 minutos y sirve una sola vez. |
 
-Confirma el método escribiendo el primer código. Desde **Seguridad** (barra superior) puedes
+Confirma el método escribiendo el primer código. En cada ingreso siguiente aparece esta pantalla:
+
+![Pantalla del código de verificación con sus partes numeradas](img/manual/07-verificacion.png)
+
+| # | Campo | Qué hacer |
+|:-:|---|---|
+| 1 | Código de 6 dígitos | El código que muestra tu app (o el que llegó a tu correo) |
+| 2 | Verificar | Abre tu tablero |
+| 3 | Perdí mi autenticador | Si ya no tienes la app, entra con un código enviado a tu correo (ver 4.3.4) |
+
+Desde **Seguridad** (barra superior) puedes
 **agregar el método que no elegiste** y escoger cuál se pide **por defecto**; tener los dos te
 permite entrar aunque no tengas el teléfono a mano.
 
