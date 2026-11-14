@@ -229,7 +229,36 @@
         Chart.defaults.plugins.tooltip.bodyColor = css("--t-tarjeta");
         Chart.defaults.plugins.tooltip.padding = 10;
         Chart.defaults.maintainAspectRatio = false;
-        Chart.defaults.animation = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? false : { duration: 700 };
+        // Las gráficas crecen al aparecer (sin animación si se pidió reducir movimiento).
+        Chart.defaults.animation = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? false : { duration: 900, easing: "easeOutQuart" };
+        Chart.defaults.elements.bar.borderRadius = 6;
+        // Máximo resaltado (idea de los tableros de referencia): en las barras verticales de una
+        // sola serie, la barra más alta lleva su valor en una etiqueta.
+        if (!Chart.registry.plugins.get("maximo")) Chart.register({
+            id: "maximo",
+            afterDatasetsDraw: function (chart, _args, opciones) {
+                if (opciones === false || chart.config.type !== "bar" || chart.data.datasets.length !== 1 || chart.options.indexAxis === "y") return;
+                var datos = chart.data.datasets[0].data.map(Number);
+                if (datos.length < 3) return;
+                var i = 0;
+                datos.forEach(function (v, j) { if (v > datos[i]) i = j; });
+                var barra = chart.getDatasetMeta(0).data[i];
+                if (!barra || !isFinite(datos[i])) return;
+                var ctx = chart.ctx, texto = datos[i].toLocaleString("es-CO");
+                ctx.save();
+                ctx.font = "600 11px system-ui, -apple-system, 'Segoe UI', sans-serif";
+                var ancho = ctx.measureText(texto).width + 12, y = Math.max(2, barra.y - 24);
+                ctx.fillStyle = css("--t-texto");
+                ctx.beginPath();
+                if (ctx.roundRect) ctx.roundRect(barra.x - ancho / 2, y, ancho, 18, 6); else ctx.rect(barra.x - ancho / 2, y, ancho, 18);
+                ctx.fill();
+                ctx.fillStyle = css("--t-tarjeta");
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.fillText(texto, barra.x, y + 9);
+                ctx.restore();
+            },
+        });
     }
 
     function dibujar(id, config) {

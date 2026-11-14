@@ -1,0 +1,19 @@
+{# Íconos de línea del menú (24×24, trazo con el color del texto). #}
+{% macro icono(nombre) -%}
+<svg class="icono" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+{%- if nombre == 'proyectos' -%}<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+{%- elif nombre == 'suites' -%}<path d="M9 6h11M9 12h11M9 18h11"/><path d="m3.5 6 1 1 2-2M3.5 12l1 1 2-2M3.5 18l1 1 2-2"/>
+{%- elif nombre == 'tablero' -%}<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>
+{%- elif nombre == 'defectos' -%}<path d="M8 8a4 4 0 0 1 8 0v1H8z"/><rect x="7" y="9" width="10" height="11" rx="5"/><path d="M12 13v4M3 13h4M17 13h4M4 7l3 2M20 7l-3 2M4 20l3-2M20 20l-3-2"/>
+{%- elif nombre == 'colecciones' -%}<path d="M4 6h16M4 12h16M4 18h10"/><path d="m17 16 2 2 3-4"/>
+{%- elif nombre == 'usuarios' -%}<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18.5 14.5A6.5 6.5 0 0 1 21.5 20"/>
+{%- elif nombre == 'contrasena' -%}<circle cx="8" cy="15" r="4"/><path d="m11 12 9-9M17 6l3 3M14 9l2 2"/>
+{%- elif nombre == 'seguridad' -%}<path d="M12 3 4.5 6v5.5c0 4.6 3.2 8.4 7.5 9.5 4.3-1.1 7.5-4.9 7.5-9.5V6z"/><path d="m9 12 2 2 4-4"/>
+{%- elif nombre == 'salir' -%}<path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 17l5-5-5-5M15 12H3"/>
+{%- elif nombre == 'mas' -%}<circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/>
+{%- elif nombre == 'alternar' -%}<path d="m15 6-6 6 6 6"/>
+{%- elif nombre == 'ingresar' -%}<path d="M9 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h3M14 17l5-5-5-5M19 12H8"/>
+{%- elif nombre == 'registro' -%}<circle cx="10" cy="8" r="3.5"/><path d="M3.5 20a6.5 6.5 0 0 1 11.5-4.2M19 14v6M16 17h6"/>
+{%- endif -%}
+</svg>
+{%- endmacro %}
