@@ -870,3 +870,106 @@
 @media (prefers-reduced-motion: reduce) {
   .tb-kpi, .tb-kpi::after, .tb-seccion { animation: none; }
 }
+
+
+/* ═════ Rediseño del tablero: estilo Helios (tarjeta protagonista, anillos, áreas en degradado) ═════ */
+.tablero { --radio: 18px; }
+.tb-tarjeta { border-radius: var(--radio); }
+.tb-kpis { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: .9rem; }
+.tb-kpi { padding: 1rem 1.05rem 1.15rem; }
+.tb-kpi--heroe {
+  grid-column: 1 / -1;
+  overflow: visible;
+  padding: 1.35rem 1.5rem 1.4rem;
+  border: 0;
+  color: #fff;
+  background:
+    radial-gradient(520px 260px at 92% -30%, rgba(255, 255, 255, .28), transparent 60%),
+    linear-gradient(125deg, #F29111 0%, #D97D0A 45%, #9A4A07 100%);
+  box-shadow: 0 22px 46px -26px rgba(154, 74, 7, .75);
+}
+[data-tema="oscuro"] .tb-kpi--heroe {
+  background:
+    radial-gradient(520px 260px at 92% -30%, rgba(252, 182, 92, .25), transparent 60%),
+    linear-gradient(125deg, #B45309 0%, #7C2D12 60%, #431407 100%);
+}
+.tb-kpi--heroe::after { display: none; }
+.tb-kpi--heroe .tb-kpi-titulo { color: rgba(255, 255, 255, .86); }
+.tb-kpi--heroe .tb-kpi-titulo > span:first-child::before { background: #fff; box-shadow: 0 0 0 3px rgba(255, 255, 255, .3); }
+.tb-kpi--heroe .tb-semaforo { color: #fff; background: rgba(255, 255, 255, .2); }
+.tb-kpi--heroe .tb-info { color: #fff; border-color: rgba(255, 255, 255, .5); background: rgba(255, 255, 255, .12); }
+.tb-heroe-cuerpo { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr); align-items: end; gap: 1.5rem; }
+.tb-kpi--heroe .tb-kpi-valor { font-size: clamp(2.4rem, 5vw, 3.4rem); line-height: 1; letter-spacing: -.03em; }
+.tb-kpi--heroe .tb-kpi-detalle { color: rgba(255, 255, 255, .85); font-size: .9rem; }
+.tb-heroe-curva { position: relative; height: 104px; }
+.tb-heroe-curva svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.tb-heroe-curva .relleno { fill: url(#tb-heroe-relleno); }
+.tb-heroe-curva .linea { fill: none; stroke: #fff; stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.tb-heroe-curva svg { animation: tb-revelar 1.3s .15s cubic-bezier(.2, .8, .2, 1) backwards; }
+.tb-heroe-curva .guia { stroke: rgba(255, 255, 255, .55); stroke-width: 1; stroke-dasharray: 3 4; vector-effect: non-scaling-stroke; }
+.tb-heroe-punto { position: absolute; width: 11px; height: 11px; margin: -5.5px 0 0 -5.5px; border-radius: 50%; background: #fff; box-shadow: 0 0 0 5px rgba(255, 255, 255, .3), 0 0 18px rgba(255, 255, 255, .7); animation: tb-latido 2.4s ease-in-out infinite; }
+@keyframes tb-latido { 50% { box-shadow: 0 0 0 9px rgba(255, 255, 255, .12), 0 0 18px rgba(255, 255, 255, .7); } }
+.tb-heroe-etiqueta {
+  position: absolute;
+  top: -.4rem;
+  padding: .2rem .55rem;
+  border-radius: 999px;
+  color: #9A4A07;
+  background: #fff;
+  font-size: .72rem;
+  font-weight: 800;
+  white-space: nowrap;
+  transform: translate(-50%, -100%);
+  box-shadow: 0 6px 16px -8px rgba(0, 0, 0, .45);
+}
+@keyframes tb-revelar { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+.tb-kpi-fila { display: flex; align-items: center; justify-content: space-between; gap: .75rem; }
+.tb-kpi-fila .tb-kpi-valor { font-size: 1.55rem; }
+.tb-anillo { flex: none; width: 46px; height: 46px; transform: rotate(-90deg); }
+.tb-anillo circle { fill: none; stroke-width: 5; }
+.tb-anillo .pista { stroke: var(--estado-suave, var(--t-acento-suave)); }
+.tb-anillo .avance { stroke: var(--estado, var(--t-acento)); stroke-linecap: round; stroke-dasharray: 100; animation: tb-anillo 1.1s .2s cubic-bezier(.2, .8, .2, 1) backwards; }
+@keyframes tb-anillo { from { stroke-dashoffset: 100; } }
+
+/* Secciones como paneles con cabecera marcada. */
+.tb-seccion-cabecera h2 { display: flex; align-items: center; gap: .6rem; }
+.tb-seccion-cabecera h2::before {
+  content: "";
+  flex: none;
+  width: 6px;
+  height: 1.15em;
+  border-radius: 6px;
+  background: linear-gradient(180deg, var(--t-acento), var(--t-acento-fuerte));
+}
+
+/* Hallazgos como línea de tiempo con punto de estado. */
+.tb-hallazgos { position: relative; padding: 1.1rem 1.25rem 1.1rem 2.6rem !important; }
+.tb-hallazgos::before { content: ""; position: absolute; top: 1.4rem; bottom: 1.4rem; left: 1.45rem; width: 2px; border-radius: 2px; background: var(--t-borde); }
+.tb-hallazgos li { display: block; position: relative; padding: .45rem 0 .45rem .35rem; list-style: none; animation: tb-entrar .45s cubic-bezier(.2, .8, .2, 1) backwards; }
+.tb-hallazgos li:nth-child(2) { animation-delay: 60ms; }
+.tb-hallazgos li:nth-child(3) { animation-delay: 120ms; }
+.tb-hallazgos li:nth-child(n + 4) { animation-delay: 180ms; }
+.tb-hallazgos li::before {
+  content: "" !important;
+  position: absolute;
+  top: .78rem;
+  left: -1.48rem;
+  margin: 0;
+  width: 12px;
+  height: 12px;
+  border: 3px solid var(--t-tarjeta);
+  border-radius: 50%;
+  background: var(--estado, var(--t-acento));
+  box-shadow: 0 0 0 3px var(--estado-suave, var(--t-acento-suave));
+}
+
+@media (max-width: 1180px) { .tb-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 760px) {
+  .tb-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .tb-heroe-cuerpo { grid-template-columns: minmax(0, 1fr); gap: 1rem; }
+  .tb-heroe-curva { height: 84px; margin-top: 1rem; }
+}
+@media (max-width: 420px) { .tb-kpis { grid-template-columns: minmax(0, 1fr); } }
+@media (prefers-reduced-motion: reduce) {
+  .tb-heroe-curva svg, .tb-anillo .avance, .tb-hallazgos li, .tb-heroe-punto { animation: none; }
+}

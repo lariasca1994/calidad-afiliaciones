@@ -83,26 +83,78 @@
         };
     }
 
+    // Anillo de progreso de un indicador en porcentaje (decorativo: la cifra va al lado).
+    function anilloKpi(valor) {
+        var v = Math.max(0, Math.min(100, Number(valor) || 0));
+        var svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        svg.setAttribute("viewBox", "0 0 44 44");
+        svg.setAttribute("class", "tb-anillo");
+        svg.setAttribute("aria-hidden", "true");
+        svg.innerHTML = '<circle class="pista" cx="22" cy="22" r="18" pathLength="100"/>' +
+            (v > 0 ? '<circle class="avance" cx="22" cy="22" r="18" pathLength="100" style="stroke-dashoffset:' + (100 - Math.max(v, 1.5)) + '"/>' : "");
+        return svg;
+    }
+
+    // Curva de trámites por mes dentro de la tarjeta protagonista, con línea guía en el pico.
+    function curvaHeroe() {
+        var porMes = agrupar(delCanal(DATOS.tendencia), "periodo", "tramites");
+        var meses = Object.keys(porMes).sort();
+        var contenedor = el("div", "tb-heroe-curva");
+        if (meses.length < 2) return contenedor;
+        var ancho = 320, alto = 96, maximo = Math.max.apply(null, meses.map(function (m) { return porMes[m]; })) || 1;
+        var puntos = meses.map(function (m, i) {
+            return [i * ancho / (meses.length - 1), alto - 8 - (porMes[m] / maximo) * (alto - 22)];
+        });
+        // Curva suave (Catmull-Rom convertida a Bézier) entre los meses.
+        var linea = "M" + puntos[0][0].toFixed(1) + " " + puntos[0][1].toFixed(1);
+        for (var k = 0; k < puntos.length - 1; k++) {
+            var p0 = puntos[k - 1] || puntos[k], p1 = puntos[k], p2 = puntos[k + 1], p3 = puntos[k + 2] || p2;
+            var c1 = [p1[0] + (p2[0] - p0[0]) / 6, p1[1] + (p2[1] - p0[1]) / 6];
+            var c2 = [p2[0] - (p3[0] - p1[0]) / 6, p2[1] - (p3[1] - p1[1]) / 6];
+            linea += " C" + [c1[0], c1[1], c2[0], c2[1], p2[0], p2[1]].map(function (v) { return v.toFixed(1); }).join(" ");
+        }
+        var pico = puntos.reduce(function (a, b) { return b[1] < a[1] ? b : a; });
+        var mesPico = meses[puntos.indexOf(pico)];
+        var svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        svg.setAttribute("viewBox", "0 0 " + ancho + " " + alto);
+        svg.setAttribute("preserveAspectRatio", "none");
+        svg.setAttribute("role", "img");
+        svg.setAttribute("aria-label", "Trámites por mes; el pico fue " + mes(mesPico) + " con " + n(porMes[mesPico]));
+        svg.innerHTML = '<defs><linearGradient id="tb-heroe-relleno" x1="0" y1="0" x2="0" y2="1">' +
+            '<stop offset="0" stop-color="#fff" stop-opacity=".45"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient></defs>' +
+            '<path class="relleno" d="' + linea + ' L' + ancho + ' ' + alto + ' L0 ' + alto + ' Z"/>' +
+            '<path class="linea" d="' + linea + '"/>' +
+            '<line class="guia" x1="' + pico[0] + '" x2="' + pico[0] + '" y1="' + pico[1] + '" y2="' + alto + '"/>';
+        // El punto del pico va fuera del SVG (que se estira): así queda redondo.
+        var punto = el("span", "tb-heroe-punto");
+        punto.style.left = (pico[0] / ancho * 100) + "%";
+        punto.style.top = (pico[1] / alto * 100) + "%";
+        var etiqueta = el("span", "tb-heroe-etiqueta", mes(mesPico) + " · " + n(porMes[mesPico]));
+        etiqueta.style.left = Math.min(78, Math.max(8, pico[0] / ancho * 100)) + "%";
+        contenedor.append(svg, punto, etiqueta);
+        return contenedor;
+    }
+
     function pintarKpis(t) {
         var calidad = pct(t.consolidados - t.noHomologado - t.territorio, t.consolidados);
         var tarjetas = [
             ["Producción consolidada", n(t.consolidados), "de " + n(t.recibidos) + " registros recibidos", ["neutro", "Total"],
              "Afiliaciones únicas: una por persona, aunque haya radicado por varios canales o varias veces. Es la cifra en la que se puede confiar."],
             ["Producción efectiva", fpct(pct(t.efectiva, t.consolidados)), n(t.efectiva) + " trámites radicados", semaforo(pct(t.efectiva, t.consolidados), 90, 80, true),
-             "Parte del consolidado que quedó radicada. Lo anulado, rechazado o sin prerradicar no cuenta como producción. Referencia: 90 % o más."],
+             "Parte del consolidado que quedó radicada. Lo anulado, rechazado o sin prerradicar no cuenta como producción. Referencia: 90 % o más.", pct(t.efectiva, t.consolidados)],
             ["Duplicidad multicanal", fpct(pct(t.dupMulti, t.consolidados)), n(t.dupMulti) + " personas en más de un canal", semaforo(pct(t.dupMulti, t.consolidados), 1, 3, false),
-             "Personas que radicaron por más de un canal. Sumar los canales sin depurar las contaría dos veces. Referencia: hasta 1 %."],
+             "Personas que radicaron por más de un canal. Sumar los canales sin depurar las contaría dos veces. Referencia: hasta 1 %.", pct(t.dupMulti, t.consolidados)],
             ["Duplicidad interna", fpct(pct(t.dupInterna, t.consolidados)), n(t.dupInterna) + " radicaciones repetidas", semaforo(pct(t.dupInterna, t.consolidados), 5, 8, false),
-             "La misma persona aparece varias veces dentro de un mismo canal. Suele venir de reenvíos o reprocesos. Referencia: hasta 5 %."],
+             "La misma persona aparece varias veces dentro de un mismo canal. Suele venir de reenvíos o reprocesos. Referencia: hasta 5 %.", pct(t.dupInterna, t.consolidados)],
             ["Calidad del dato", fpct(calidad), "documento y territorio completos", semaforo(calidad, 97, 92, true),
-             "Registros con tipo de documento reconocido y con departamento y municipio. Referencia: 97 % o más."],
+             "Registros con tipo de documento reconocido y con departamento y municipio. Referencia: 97 % o más.", calidad],
             ["Registros críticos", fpct(pct(t.critico, t.consolidados)), n(t.critico) + " no se pueden contar con confianza", semaforo(pct(t.critico, t.consolidados), 1, 3, false),
-             "Registros con un problema que impide contarlos con confianza, como documento vacío o fuera de catálogo. Referencia: hasta 1 %."],
+             "Registros con un problema que impide contarlos con confianza, como documento vacío o fuera de catálogo. Referencia: hasta 1 %.", pct(t.critico, t.consolidados)],
         ];
         var cont = document.getElementById("kpis");
         cont.textContent = "";
         tarjetas.forEach(function (d, i) {
-            var tarjeta = el("article", "tb-tarjeta tb-kpi estado-" + d[3][0]);
+            var tarjeta = el("article", "tb-tarjeta tb-kpi estado-" + d[3][0] + (i === 0 ? " tb-kpi--heroe" : ""));
             var titulo = el("p", "tb-kpi-titulo");
             var nombre = el("span", null, d[0]);
             var info = el("button", "tb-info", "?");
@@ -120,8 +172,21 @@
                 globo.hidden = !abrir;
                 info.setAttribute("aria-expanded", String(abrir));
             });
-            titulo.append(nombre, el("span", "tb-semaforo", d[3][1]), info);
-            tarjeta.append(titulo, el("p", "tb-kpi-valor", d[1]), el("p", "tb-kpi-detalle", d[2]), globo);
+            if (i === 0) titulo.append(nombre, info);
+            else titulo.append(nombre, el("span", "tb-semaforo", d[3][1]), info);
+            if (i === 0) {
+                var cuerpo = el("div", "tb-heroe-cuerpo");
+                var cifras = el("div", "tb-heroe-cifras");
+                cifras.append(el("p", "tb-kpi-valor", d[1]), el("p", "tb-kpi-detalle", d[2]));
+                cuerpo.append(cifras, curvaHeroe());
+                tarjeta.append(titulo, cuerpo, globo);
+            } else {
+                var fila = el("div", "tb-kpi-fila");
+                var textos = el("div");
+                textos.append(el("p", "tb-kpi-valor", d[1]), el("p", "tb-kpi-detalle", d[2]));
+                fila.append(textos, anilloKpi(d[5]));
+                tarjeta.append(titulo, fila, globo);
+            }
             cont.append(tarjeta);
         });
         document.getElementById("nota-filtro").textContent =
@@ -232,6 +297,27 @@
         // Las gráficas crecen al aparecer (sin animación si se pidió reducir movimiento).
         Chart.defaults.animation = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? false : { duration: 900, easing: "easeOutQuart" };
         Chart.defaults.elements.bar.borderRadius = 6;
+        Chart.defaults.elements.line.borderWidth = 2.5;
+        Chart.defaults.elements.point.radius = 0;
+        Chart.defaults.elements.point.hoverRadius = 5;
+        Chart.defaults.plugins.legend.labels.boxWidth = 8;
+        Chart.defaults.plugins.legend.labels.boxHeight = 8;
+        Chart.defaults.plugins.tooltip.cornerRadius = 10;
+        // Áreas con degradado vertical del color de su línea (estilo Helios).
+        if (!Chart.registry.plugins.get("degradado")) Chart.register({
+            id: "degradado",
+            afterLayout: function (chart) {
+                var area = chart.chartArea;
+                if (!area || chart.config.type !== "line") return;
+                chart.data.datasets.forEach(function (ds) {
+                    if (!ds.fill || typeof ds.borderColor !== "string") return;
+                    var g = chart.ctx.createLinearGradient(0, area.top, 0, area.bottom);
+                    g.addColorStop(0, ds.borderColor + "55");
+                    g.addColorStop(1, ds.borderColor + "00");
+                    ds.backgroundColor = g;
+                });
+            },
+        });
         // Máximo resaltado (idea de los tableros de referencia): en las barras verticales de una
         // sola serie, la barra más alta lleva su valor en una etiqueta.
         if (!Chart.registry.plugins.get("maximo")) Chart.register({
