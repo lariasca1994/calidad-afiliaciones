@@ -45,6 +45,13 @@
       color: var(--boton-texto); text-decoration: none; font-weight: 700;
     }
     .boton:focus-visible { outline: 3px solid var(--texto); outline-offset: 3px; }
+    .acciones-estado { display: flex; flex-wrap: wrap; align-items: center; gap: 14px 18px; }
+    .reintento { display: inline-flex; align-items: center; gap: 8px; color: var(--suave); font-size: .88rem; }
+    .reintento svg { width: 20px; height: 20px; transform: rotate(-90deg); }
+    .reintento circle { fill: none; stroke-width: 3; }
+    .reintento .fondo { stroke: var(--borde); }
+    .reintento .valor { stroke: var(--acento); stroke-dasharray: 1; stroke-linecap: round; transition: stroke-dashoffset 1s linear; }
+    @media (prefers-reduced-motion: reduce) { .reintento .valor { transition: none; } }
   </style>
 </head>
 <body>
@@ -58,7 +65,11 @@
       <li>Ningún proceso de validación quedó a medias.</li>
       <li>Vuelve a intentarlo en unos minutos.</li>
     </ul>
-    <a class="boton" href="/">Reintentar</a>
+    <div class="acciones-estado">
+      <a class="boton" href="/">Reintentar</a>
+      <span class="reintento"><svg viewBox="0 0 24 24" aria-hidden="true"><circle class="fondo" cx="12" cy="12" r="9"/><circle id="valor" class="valor" cx="12" cy="12" r="9" pathLength="1"/></svg><span id="texto">Nuevo intento en 60 s</span></span>
+    </div>
   </main>
+  <script src="/static/js/estado-mantenimiento.js"></script>
 </body>
 </html>

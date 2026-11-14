@@ -1,0 +1,60 @@
+/* Pantallas de estado (404, sin conexión, mantenimiento): tokens de estilos.css. */
+body.estado {
+    display: grid;
+    min-height: 100vh;
+    min-height: 100dvh;
+    place-items: center;
+    padding: 24px max(16px, env(safe-area-inset-right)) 24px max(16px, env(safe-area-inset-left));
+    background: radial-gradient(900px 480px at 85% -10%, var(--acento-suave), transparent 60%), var(--fondo);
+}
+.estado-marco { display: grid; grid-template-columns: minmax(0, 340px) minmax(0, 440px); align-items: center; gap: 3rem; max-width: 880px; padding: 0; margin: 0; }
+.estado-corrida {
+    padding: 1.1rem 1.25rem;
+    border: 1px solid var(--borde);
+    border-top: 4px solid var(--acento);
+    border-radius: 16px;
+    background: var(--superficie);
+    box-shadow: 0 24px 50px -28px rgba(16, 41, 30, .45);
+    font-size: .85rem;
+    animation: ca-flota 5s ease-in-out infinite;
+}
+.estado-corrida p { margin: 0; }
+.estado-corrida__cabeza { display: flex; justify-content: space-between; padding-bottom: .75rem; border-bottom: 1px solid var(--borde); color: var(--texto-suave); font: 700 .72rem ui-monospace, Consolas, monospace; letter-spacing: .04em; }
+.estado-corrida__caso { display: flex; justify-content: space-between; gap: 1rem; padding: .9rem 0 .35rem; font-family: ui-monospace, Consolas, monospace; }
+.estado-corrida__caso code { overflow-wrap: anywhere; }
+.veredicto-404 { flex: none; padding: .1rem .5rem; border-radius: 6px; color: #b3261e; background: #fbe1e1; font-weight: 700; animation: ca-parpadeo 2.4s ease-in-out infinite; }
+[data-tema="oscuro"] .veredicto-404 { color: #f29a94; background: #3a1a1a; }
+.estado-corrida__esperado { padding-bottom: .9rem; border-bottom: 1px dashed var(--borde); color: var(--texto-suave); }
+.estado-corrida__pie { display: flex; align-items: center; justify-content: space-between; padding-top: .8rem; color: var(--texto-suave); }
+.estado-etiqueta { margin: 0 0 .4rem; color: var(--acento); font-size: .75rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+.estado-texto h1 { margin: 0 0 .75rem; font-size: clamp(1.5rem, 3.4vw, 2rem); line-height: 1.2; letter-spacing: -.02em; }
+.estado-texto p { color: var(--texto-suave); line-height: 1.6; }
+.estado-texto code { padding: .1rem .35rem; border-radius: 5px; background: var(--acento-suave); color: var(--texto); overflow-wrap: anywhere; }
+.estado-acciones { display: flex; flex-wrap: wrap; gap: .75rem; margin-top: 1.25rem; }
+.estado-texto, .estado-corrida { animation-fill-mode: backwards; }
+.estado-texto { animation: ca-entrar .5s .08s var(--curca-suave) backwards; }
+.estado-centrado { max-width: 460px; text-align: center; }
+.estado-centrado .estado-acciones { justify-content: center; align-items: center; }
+.reintento { display: inline-flex; align-items: center; gap: .5rem; color: var(--texto-suave); font-size: .88rem; }
+.reintento svg { width: 1.2rem; height: 1.2rem; transform: rotate(-90deg); }
+.reintento circle { fill: none; stroke-width: 3; }
+.reintento .fondo { stroke: var(--borde); }
+.reintento .valor { stroke: var(--acento); stroke-dasharray: 1; stroke-linecap: round; transition: stroke-dashoffset 1s linear; }
+.senal { display: flex; justify-content: center; align-items: flex-end; gap: 6px; height: 46px; margin: 0 auto 1.25rem; }
+.senal span { width: 10px; border-radius: 4px; background: var(--acento); opacity: .25; animation: ca-senal 1.6s ease-in-out infinite; }
+.senal span:nth-child(1) { height: 30%; }
+.senal span:nth-child(2) { height: 55%; animation-delay: .15s; }
+.senal span:nth-child(3) { height: 80%; animation-delay: .3s; }
+.senal span:nth-child(4) { height: 100%; animation-delay: .45s; }
+@keyframes ca-senal { 50% { opacity: 1; } }
+@keyframes ca-flota { 50% { transform: translateY(-6px); } }
+@keyframes ca-parpadeo { 50% { opacity: .55; } }
+@media (max-width: 760px) {
+    .estado-marco { grid-template-columns: minmax(0, 1fr); gap: 1.75rem; }
+    .estado-corrida { max-width: 360px; }
+}
+
+.estado .boton { display: inline-flex; align-items: center; padding: .6rem 1.3rem; border-radius: 8px; background: var(--acento); color: #fff; font-weight: 600; text-decoration: none; border: 1px solid transparent; cursor: pointer; font: inherit; }
+.estado .boton-secundario { background: transparent; color: var(--acento); border-color: var(--acento); }
+.estado .resultado { padding: .2rem .6rem; border-radius: 999px; font-size: .78rem; font-weight: 600; background: var(--acento-suave); color: var(--texto-suave); }
+body.estado { margin: 0; color: var(--texto); font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; }

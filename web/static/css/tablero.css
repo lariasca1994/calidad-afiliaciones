@@ -824,3 +824,49 @@
     animation: none;
   }
 }
+
+/* ───── Estilo de los tableros de referencia (Ultraleads, Dwisun, Helios) ─────
+   Indicadores con punto de color por estado, línea de acento que se llena al aparecer,
+   relieve suave y elevación al pasar el ratón. Los globos de ayuda siguen igual. */
+.tb-kpi {
+  border-top: 0;
+  border-radius: 14px;
+  background: linear-gradient(180deg, var(--t-tarjeta), color-mix(in srgb, var(--estado, var(--t-acento)) 4%, var(--t-tarjeta)));
+  transition: transform .25s cubic-bezier(.2, .8, .2, 1), box-shadow .25s ease;
+  animation: tb-entrar .5s cubic-bezier(.2, .8, .2, 1) backwards;
+}
+.tb-kpi:nth-child(2) { animation-delay: 60ms; }
+.tb-kpi:nth-child(3) { animation-delay: 120ms; }
+.tb-kpi:nth-child(4) { animation-delay: 180ms; }
+.tb-kpi:nth-child(n + 5) { animation-delay: 240ms; }
+.tb-kpi::after {
+  content: "";
+  position: absolute;
+  right: 1rem;
+  bottom: 0;
+  left: 1rem;
+  height: 3px;
+  border-radius: 3px 3px 0 0;
+  background: var(--estado, var(--t-acento));
+  transform-origin: left;
+  animation: tb-llenar .8s .15s cubic-bezier(.2, .8, .2, 1) backwards;
+}
+.tb-kpi-titulo > span:first-child { display: inline-flex; align-items: center; gap: .45rem; }
+.tb-kpi-titulo > span:first-child::before {
+  content: "";
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--estado, var(--t-acento));
+  box-shadow: 0 0 0 3px var(--estado-suave, var(--t-acento-suave));
+}
+@media (hover: hover) and (pointer: fine) {
+  .tb-kpi:hover { transform: translateY(-3px); box-shadow: 0 16px 32px -22px rgba(28, 25, 23, .45); }
+}
+.tb-seccion { animation: tb-entrar .5s cubic-bezier(.2, .8, .2, 1) backwards; }
+@keyframes tb-entrar { from { opacity: 0; transform: translateY(10px); } }
+@keyframes tb-llenar { from { transform: scaleX(0); } }
+@media (prefers-reduced-motion: reduce) {
+  .tb-kpi, .tb-kpi::after, .tb-seccion { animation: none; }
+}
