@@ -159,7 +159,11 @@ Confirma el método escribiendo el primer código. En cada ingreso siguiente apa
 | 2 | Verificar | Abre tu tablero |
 | 3 | Perdí mi autenticador | Si ya no tienes la app, entra con un código enviado a tu correo (ver 4.3.4) |
 
-Desde **Seguridad** (barra superior) puedes
+El código se escribe en **seis casillas**, una por dígito: puedes teclearlo o pegarlo completo.
+Un candado sobre el título se abre al enviar el código completo y se sacude si no es válido; con la
+app autenticadora, un anillo muestra cuántos segundos faltan para que la app cambie de código.
+
+Desde **Seguridad** (menú lateral) puedes
 **agregar el método que no elegiste** y escoger cuál se pide **por defecto**; tener los dos te
 permite entrar aunque no tengas el teléfono a mano.
 
@@ -187,6 +191,21 @@ bloqueada unos minutos.
 | 2 | 📁 Subir mis archivos | Abre el formulario para cargar tus propios archivos (ver 3.5) |
 | 3 | 📊 Excel con tablas dinámicas | Descarga un libro con tu consolidado, medidas DAX y tablas dinámicas listas (ver 3.7) |
 | 4 | ⬇️ CSV | Descarga `consolidado.csv`, un archivo plano sin medidas ni tablas dinámicas |
+
+**Menú lateral.** A la izquierda están **Tablero** y, al pie, tu correo, **Contraseña**,
+**Seguridad** y **Salir**; una luz naranja marca la sección actual. **Compactar menú** lo reduce a
+solo íconos (al pasar el cursor aparece el nombre de cada uno) y la preferencia se recuerda en ese
+equipo.
+
+![Menú lateral compacto con el nombre de la opción al pasar el cursor](img/manual/08-menu-compacto.png)
+
+**En la tablet en vertical y en el celular** el menú se convierte en una **barra inferior**
+translúcida (Tablero, Seguridad y **Más**, que abre una hoja desde abajo con Contraseña y Salir).
+El tablero se reacomoda solo al girar la pantalla.
+
+![Tablero en una tablet en vertical](img/manual/09-tablet-vertical.png)
+
+![Tablero en el celular con la hoja Más abierta](img/manual/10-movil-mas.png)
 
 **Cada generación es distinta.** Además de cambiar las personas, cada clic sortea un *escenario*:
 cuánto aporta cada canal, el periodo (de 8 a 18 meses), la duplicidad, los rechazos y la calidad de
@@ -221,8 +240,8 @@ tendencia, el tipo de trámite, el estado, el régimen y el territorio, sin reca
 
 | Sección | Qué responde |
 |---|---|
-| Resumen ejecutivo | Seis indicadores con semáforo (verde, ámbar o rojo): producción consolidada, producción efectiva, duplicidad multicanal e interna, calidad del dato y registros críticos. El botón **?** de cada uno explica qué mide y cuál es la referencia |
-| Lo más importante | Hallazgos escritos en frases sencillas: qué canal pesa más, cuánto se descartó, el mes pico, la fuente con más problemas |
+| Resumen ejecutivo | Arriba, la **tarjeta principal** con la producción consolidada y una curva de los trámites por mes que marca el mes pico. Debajo, cinco indicadores con semáforo (verde, ámbar o rojo) y un anillo que muestra el porcentaje: producción efectiva, duplicidad multicanal e interna, calidad del dato y registros críticos. El botón **?** de cada uno explica qué mide y cuál es la referencia |
+| Lo más importante | Hallazgos escritos en frases sencillas, en una línea de tiempo con un punto del color de su estado: qué canal pesa más, cuánto se descartó, el mes pico, la fuente con más problemas |
 | De dónde salen los datos | Los seis archivos de origen con sus filas, los pasos del proceso y el embudo: recibidos → descartados por repetidos → consolidado → producción efectiva |
 | Producción en el tiempo | Trámites, producción efectiva y duplicados por mes. Si el último mes está incompleto, el tablero lo avisa |
 | Canales y tipo de trámite | Aporte y depuración por canal, reinscripción/traslado/afiliación nueva, estado del trámite y régimen |
@@ -252,7 +271,23 @@ propios análisis: **Insertar → Tabla dinámica → Desde el modelo de datos**
 ### 4.8 Preguntas frecuentes
 
 **¿Por qué a veces aparece "En mantenimiento"?** La base se apaga sin uso para no generar costos
-y tarda unos minutos en volver a encenderse. Espera un momento y vuelve a entrar.
+y tarda unos minutos en volver a encenderse. La pantalla reintenta sola cada minuto (un anillo
+muestra los segundos que faltan), hasta cinco veces; después puedes pulsar **Reintentar**.
+
+**¿Puedo instalarlo como aplicación?** Sí. En Chrome o Edge usa **Instalar aplicación** (ícono
+en la barra de direcciones o menú ⋮); en el iPhone, en Safari, **Compartir → Agregar a inicio**. Se
+abre en su propia ventana y entra directo al tablero.
+
+**¿Qué pasa si me quedo sin internet?** Aparece la pantalla **Sin conexión**, que reintenta sola
+cada pocos segundos (o con **Reintentar ahora**) y vuelve a la página cuando hay red.
+
+![Pantalla sin conexión con reintento automático](img/manual/12-sin-conexion.png)
+
+**Abrí un enlace y dice "Esta afiliación no está en el reporte".** La dirección no existe (un enlace
+viejo o mal copiado). Usa **Ver el tablero** o **Volver al inicio**; si tenías la sesión abierta,
+sigue abierta.
+
+![Página no encontrada](img/manual/11-no-encontrada.png)
 
 **¿Otra persona puede ver mis datos?** No. Cada cuenta ve solo lo que generó o subió.
 
