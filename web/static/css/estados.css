@@ -32,7 +32,7 @@ body.estado {
 .estado-texto code { padding: .1rem .35rem; border-radius: 5px; background: var(--acento-suave); color: var(--texto); overflow-wrap: anywhere; }
 .estado-acciones { display: flex; flex-wrap: wrap; gap: .75rem; margin-top: 1.25rem; }
 .estado-texto, .estado-corrida { animation-fill-mode: backwards; }
-.estado-texto { animation: ca-entrar .5s .08s var(--curca-suave) backwards; }
+.estado-texto { animation: ca-entrar .5s .08s var(--curva-suave) backwards; }
 .estado-centrado { max-width: 460px; text-align: center; }
 .estado-centrado .estado-acciones { justify-content: center; align-items: center; }
 .reintento { display: inline-flex; align-items: center; gap: .5rem; color: var(--texto-suave); font-size: .88rem; }
