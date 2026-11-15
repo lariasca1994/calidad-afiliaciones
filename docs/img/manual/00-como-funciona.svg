@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 284" role="img" aria-label="Calidad de afiliaciones: cómo funciona" font-family="Inter, Segoe UI, Roboto, Arial, sans-serif">
+<rect width="980" height="284" rx="18" fill="#ffffff"/>
+<rect x="1" y="1" width="978" height="282" rx="17" fill="none" stroke="#e5e7eb"/>
+<text x="32" y="44" font-size="20" font-weight="800" fill="#111827">Calidad de afiliaciones · cómo funciona</text>
+<rect x="32" y="56" width="56" height="4" rx="2" fill="#d97706"/>
+<rect x="28.0" y="84" width="210" height="172" rx="14" fill="#d97706" fill-opacity="0.06" stroke="#d97706" stroke-opacity="0.35"/>
+<g transform="translate(62.0 118)" fill="none" stroke="#d97706" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle r="22" fill="#d97706" fill-opacity="0.12" stroke="none"/><circle cx="0" cy="-6" r="7"/><path d="M-12 12a12 12 0 0 1 24 0"/></g>
+<text x="94.0" y="124" font-size="15" font-weight="700" fill="#111827">Personas</text>
+<text x="46.0" y="168" font-size="13" fill="#374151">• Analistas de datos</text>
+<text x="46.0" y="190" font-size="13" fill="#374151">• Coordinadores</text>
+<text x="46.0" y="212" font-size="13" fill="#374151">• Equipos de calidad</text>
+<path d="M242.0 170.0 h18" stroke="#d97706" stroke-width="2.5" stroke-linecap="round"/>
+<path d="M256.0 165.0 l6 5 -6 5" fill="none" stroke="#d97706" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+<rect x="266.0" y="84" width="210" height="172" rx="14" fill="#d97706" fill-opacity="0.06" stroke="#d97706" stroke-opacity="0.35"/>
+<g transform="translate(300.0 118)" fill="none" stroke="#d97706" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle r="22" fill="#d97706" fill-opacity="0.12" stroke="none"/><rect x="-12" y="-11" width="24" height="18" rx="3"/><path d="M-5 12h10M0 7v5"/></g>
+<text x="332.0" y="124" font-size="15" font-weight="700" fill="#111827">Aplicación</text>
+<text x="284.0" y="168" font-size="13" fill="#374151">• Navegador web</text>
+<text x="284.0" y="190" font-size="13" fill="#374151">• App instalable</text>
+<text x="284.0" y="212" font-size="13" fill="#374151">• Celular, tablet o PC</text>
+<text x="284.0" y="234" font-size="13" fill="#374151">• Tema claro u oscuro</text>
+<path d="M480.0 170.0 h18" stroke="#d97706" stroke-width="2.5" stroke-linecap="round"/>
+<path d="M494.0 165.0 l6 5 -6 5" fill="none" stroke="#d97706" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+<rect x="504.0" y="84" width="210" height="172" rx="14" fill="#d97706" fill-opacity="0.06" stroke="#d97706" stroke-opacity="0.35"/>
+<g transform="translate(538.0 118)" fill="none" stroke="#d97706" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle r="22" fill="#d97706" fill-opacity="0.12" stroke="none"/><rect x="-11" y="-11" width="9" height="9" rx="2"/><rect x="2" y="-11" width="9" height="9" rx="2"/><rect x="-11" y="2" width="9" height="9" rx="2"/><rect x="2" y="2" width="9" height="9" rx="2"/></g>
+<text x="570.0" y="124" font-size="15" font-weight="700" fill="#111827">Plataforma</text>
+<text x="522.0" y="168" font-size="13" fill="#374151">• Cargar las 6 fuentes</text>
+<text x="522.0" y="190" font-size="13" fill="#374151">• Unificar y depurar</text>
+<text x="522.0" y="212" font-size="13" fill="#374151">• Tablero de indicadores</text>
+<text x="522.0" y="234" font-size="13" fill="#374151">• Excel y CSV</text>
+<path d="M718.0 170.0 h18" stroke="#d97706" stroke-width="2.5" stroke-linecap="round"/>
+<path d="M732.0 165.0 l6 5 -6 5" fill="none" stroke="#d97706" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+<rect x="742.0" y="84" width="210" height="172" rx="14" fill="#d97706" fill-opacity="0.06" stroke="#d97706" stroke-opacity="0.35"/>
+<g transform="translate(776.0 118)" fill="none" stroke="#d97706" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle r="22" fill="#d97706" fill-opacity="0.12" stroke="none"/><rect x="-10" y="-3" width="20" height="15" rx="3"/><path d="M-6 -3v-4a6 6 0 0 1 12 0v4"/></g>
+<text x="808.0" y="124" font-size="15" font-weight="700" fill="#111827">Información</text>
+<text x="760.0" y="168" font-size="13" fill="#374151">• Cada cuenta ve lo suyo</text>
+<text x="760.0" y="190" font-size="13" fill="#374151">• Datos de ejemplo</text>
+<text x="760.0" y="212" font-size="13" fill="#374151">• Se reemplazan al cargar</text>
+<text x="760.0" y="234" font-size="13" fill="#374151">• Solo lo necesario</text>
+</svg>

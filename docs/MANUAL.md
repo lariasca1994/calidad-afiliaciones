@@ -1,217 +1,189 @@
 # 📘 Manual de usuario · Calidad de afiliaciones
 
-Guía para usar el panel web paso a paso: qué significa cada campo, qué datos se ingresan y qué
-protege la plataforma. Para la parte técnica (arquitectura, consola, Power Query) vuelve al
-[README](../README.md).
+## 1. Portada
 
-**Demo:** [calidad-afiliaciones (Azure Container Apps)](https://calidad-afiliaciones.blueocean-86680030.eastus.azurecontainerapps.io/)
+![Portada de Calidad de afiliaciones: seis fuentes, una sola cifra](img/manual/01-portada.png)
+
+| | |
+|---|---|
+| **Producto** | Calidad de afiliaciones |
+| **Documento** | Manual de usuario |
+| **Versión** | 2.0 · noviembre de 2026 |
+| **Dirigido a** | Analistas, coordinadores y equipos de calidad de datos de afiliación |
+| **Dirección** | [calidad-afiliaciones](https://calidad-afiliaciones.blueocean-86680030.eastus.azurecontainerapps.io/) |
+| **Autor** | Luis F. A. |
 
 ## Contenido
 
-1. [Proyecto: objetivos y alcances](#1-proyecto-objetivos-y-alcances)
-2. [Glosario](#2-glosario)
-3. [Plataformas, base de datos y servicios](#3-plataformas-base-de-datos-y-servicios)
-4. [Paso a paso](#4-paso-a-paso)
-5. [Seguridad: tu información protegida](#5-seguridad-tu-información-protegida)
-6. [Agradecimientos](#6-agradecimientos)
+1. [Portada](#1-portada)
+2. [Introducción](#2-introducción)
+3. [Objetivo](#3-objetivo)
+4. [Alcance](#4-alcance)
+5. [Acceso al sistema](#5-acceso-al-sistema)
+6. [Pantalla principal](#6-pantalla-principal)
+7. [Navegación](#7-navegación)
+8. [Funcionalidades](#8-funcionalidades)
+9. [Gestión de perfil](#9-gestión-de-perfil)
+10. [Mensajes frecuentes](#10-mensajes-frecuentes)
+11. [Preguntas frecuentes](#11-preguntas-frecuentes)
+12. [Glosario](#12-glosario)
 
 ---
 
-## 1. Proyecto: objetivos y alcances
+## 2. Introducción
 
-### Objetivo
+Las afiliaciones llegan por tres canales (digital, SAT y físico) y cada uno las reporta a su
+manera. **Calidad de afiliaciones** recibe esos archivos, los unifica, deja **un solo registro por
+afiliado** y muestra en un tablero cuántas afiliaciones reales hubo, por dónde llegaron y qué tan
+confiables son los datos.
 
-El panel recibe los archivos de afiliación de tres canales (digital, SAT y físico) más los
-históricos, deja **un solo registro por afiliado** y muestra una cifra de producción confiable con
-sus problemas de calidad. Si no tienes archivos propios, un botón genera datos sintéticos con los
-mismos problemas que tienen los reales.
+Si no tienes archivos propios, un botón genera datos de ejemplo con los mismos problemas que tienen
+los reales. Este manual explica cada pantalla, paso a paso y con imágenes.
 
-### Alcance: qué necesitas y qué esperar
+![Cómo funciona Calidad de afiliaciones: personas, aplicación, plataforma e información](img/manual/00-como-funciona.svg)
 
-- Solo necesitas un navegador; no hay que instalar nada.
-- La base de datos se apaga cuando nadie la usa. Si al entrar aparece la página **En
-  mantenimiento**, la base se está encendiendo: espera unos minutos y vuelve a intentarlo.
-- **Usa datos de ejemplo.** La demo es pública; no subas archivos con documentos reales de
-  afiliados (ver [Límites](#1-proyecto-objetivos-y-alcances)).
+## 3. Objetivo
 
-### Límites
+Que cualquier persona pueda, sin conocimientos técnicos:
 
-Es una demo de portafolio, no un sistema certificado para datos personales de salud:
+- Crear su cuenta e ingresar de forma segura.
+- Cargar datos (de ejemplo o propios) y obtener una cifra de producción confiable.
+- Consultar los indicadores de calidad por canal, en el tiempo y por territorio.
+- Descargar los resultados en Excel o CSV para su propio análisis.
 
-- **No subas datos reales de afiliados** a la instancia pública. Para datos reales, corre el
-  proyecto en tu equipo (ver [Instalación](../README.md#6-instalación-para-pruebas)).
-- El registro no verifica el correo: para recuperar la cuenta con **¿Olvidaste tu contraseña?**,
-  regístrate con un correo al que tengas acceso.
-- El registro no exige longitud mínima de contraseña (al cambiarla o restablecerla sí: 8
-  caracteres): elige una contraseña larga y que no uses en otros sitios.
-- El Excel que descargas del tablero (y cualquier libro conectado a la base) guarda una copia de
-  los datos dentro del `.xlsx`, también en su modelo de datos. Trátalo como un archivo con datos.
+## 4. Alcance
 
-## 2. Glosario
+**Incluye:** registro e ingreso con verificación en dos pasos, generación de datos de ejemplo,
+carga de los seis archivos de origen, tablero de indicadores con filtro por canal, descarga en Excel
+con tablas dinámicas y en CSV, cambio de contraseña y métodos de verificación.
 
-Palabras técnicas que aparecen en este manual, explicadas en lenguaje simple.
+**No incluye:** corrección de los archivos de origen ni envío de reportes a terceros.
 
-| Término | Qué significa |
-|---|---|
-| **Administrador** | Cuenta con permisos para gestionar usuarios y configuraciones de la aplicación. |
-| **API** | Puerta de entrada de un programa para que otros programas le pidan o le envíen datos. |
-| **Arranque en frío** | Los servidores gratuitos se apagan sin uso; la primera visita tarda unos segundos mientras vuelven a encenderse. |
-| **Base de datos** | Lugar donde la aplicación guarda la información de forma ordenada y permanente. |
-| **Cifrado / TLS / HTTPS** | Protección que codifica la información mientras viaja, para que nadie en el camino pueda leerla. |
-| **Contraseña cifrada (hash)** | La contraseña no se guarda tal cual, sino como una "huella" de la que no se puede recuperar el texto original. |
-| **Cookie** | Pequeño dato que el navegador guarda para recordar tu sesión en ese sitio. |
-| **CSV** | Archivo de texto con datos en columnas, que se abre en Excel o Google Sheets. |
-| **Excel / XLSX** | Formato de hoja de cálculo de Microsoft Excel. |
-| **JWT** | Tipo de token firmado digitalmente: si alguien lo altera, el servidor lo rechaza. |
-| **Modo mantenimiento** | Pantalla que aparece cuando el servicio o su base de datos no responden; se recupera sola cuando vuelven. |
-| **Navegador** | Programa con el que abres páginas web: Chrome, Edge, Firefox, Safari. |
-| **Nube** | Servidores de una empresa (Amazon, Microsoft, Google, Oracle…) donde la aplicación funciona sin depender de un computador propio. |
-| **Rate limit (límite de intentos)** | Tope de intentos en poco tiempo, para frenar a quien intenta adivinar contraseñas. |
-| **Servidor** | Computador en la nube que atiende las peticiones de la aplicación. |
-| **Sesión** | El tiempo en que la aplicación te reconoce después de iniciar sesión, sin pedirte la contraseña de nuevo. |
-| **Tema claro / oscuro** | Combinación de colores de la interfaz; puedes elegir la clara o la oscura. |
-| **Variables de entorno / secretos** | Claves y contraseñas internas de la aplicación, guardadas fuera del código para que no queden expuestas. |
+**Qué necesitas:** un navegador actualizado, conexión a internet, un correo propio y una app
+autenticadora en el celular (o acceso a tu correo para recibir códigos). Para el Excel con tablas
+dinámicas, Excel de escritorio para Windows 2016 o posterior.
 
-## 3. Plataformas, base de datos y servicios
+**Buenas prácticas:** es una plataforma de demostración pública; usa los datos de ejemplo o
+archivos sin documentos reales de afiliados. El Excel descargado guarda una copia de tus datos:
+trátalo como un archivo con información.
 
-Qué servicio de nube, base de datos o API usa el proyecto y para qué sirve cada uno.
+## 5. Acceso al sistema
 
-| Plataforma | Tipo | Qué hace en el proyecto |
-|---|---|---|
-| ![Azure Container Apps](https://img.shields.io/badge/Azure_Container_Apps-0078D4?style=for-the-badge&logo=microsoftazure&logoColor=white) | Nube | Corre el panel web (FastAPI + Jinja2) y el mismo pipeline ETL que usa la consola. |
-| ![MySQL](https://img.shields.io/badge/MySQL-4479A1?style=for-the-badge&logo=mysql&logoColor=white) | Base de datos | TiDB Cloud aloja la base compatible con MySQL 8 con las seis fuentes, el consolidado y las cuentas del panel; se reanuda sola con la primera conexión. |
-| ![Excel](https://img.shields.io/badge/Power_Query_%2F_Power_Pivot-217346?style=for-the-badge&logo=microsoftexcel&logoColor=white) | Formato de archivo | Se conecta directo a la tabla `consolidado` para armar tablas dinámicas. |
-| ![GitHub Actions](https://img.shields.io/badge/GitHub_Actions-181717?style=for-the-badge&logo=githubactions&logoColor=white) | Automatización | Construye la imagen Docker y la despliega en Azure. |
-| ![qa-evidencia](https://img.shields.io/badge/qa--evidencia-2EAD33?style=for-the-badge&logo=playwright&logoColor=white) | Pruebas automatizadas | Prueba la demo automáticamente y publica la evidencia. |
+### 5.1 Crear una cuenta
 
-## 4. Paso a paso
-
-### 4.1 Portada
-
-![Portada del panel](img/manual/01-portada.png)
-
-Desde la portada eliges **Crear cuenta** o **Iniciar sesión**. El botón de la luna, arriba a la
-derecha, cambia entre tema claro y oscuro.
-
-### 4.2 Crear una cuenta
+En la pantalla de ingreso pulsa **Crear una**.
 
 ![Formulario de registro con sus campos numerados](img/manual/02-registro.png)
 
-| # | Campo | Qué escribir | Reglas |
-|:-:|---|---|---|
-| 1 | Correo | El correo con el que vas a entrar | Formato de correo válido; se guarda en minúsculas. Solo se le escribe si pides recuperar la contraseña |
-| 2 | Contraseña | Tu contraseña | Máximo 72 bytes (las tildes, la ñ y los emojis cuentan doble o más) |
-| 3 | Confirmar contraseña | La misma contraseña | Debe coincidir con el campo 2 |
-| 4 | Crear cuenta | Botón | Crea la cuenta vacía y te lleva a elegir tu verificación en dos pasos |
-
-El registro es libre y no requiere aprobación. Si el correo ya existe, el panel lo avisa.
-
-### 4.3 Iniciar sesión
-
-![Formulario de inicio de sesión](img/manual/03-login.png)
-
 | # | Campo | Qué escribir |
+|:-:|---|---|
+| 1 | Correo | Un correo al que tengas acceso: lo usarás para entrar y para recuperar la cuenta |
+| 2 | Contraseña | Una contraseña larga que no uses en otros sitios |
+| 3 | Confirmar contraseña | La misma contraseña |
+| 4 | Crear cuenta | Crea tu cuenta y te lleva a configurar la verificación en dos pasos |
+
+### 5.2 Iniciar sesión
+
+![Formulario de inicio de sesión con sus elementos numerados](img/manual/03-ingreso.png)
+
+| # | Elemento | Qué hace |
 |:-:|---|---|
 | 1 | Correo | El correo de tu cuenta |
 | 2 | Contraseña | Tu contraseña |
-| 3 | Entrar | Pide el código de tu verificación en dos pasos (ver 4.3.3) |
-| 4 | ¿Olvidaste tu contraseña? | Enlace para crear una contraseña nueva (ver 4.3.1) |
+| 3 | Entrar | Comprueba tus datos y pasa a la verificación en dos pasos |
+| 4 | ¿Olvidaste tu contraseña? | Abre la recuperación de contraseña (5.4) |
+| 5 | Crear una | Abre el registro (5.1) |
 
-Si el correo o la contraseña no coinciden, el mensaje es el mismo en ambos casos, para no revelar
-qué correos están registrados.
+### 5.3 Verificación en dos pasos
 
-### 4.3.1 Olvidé mi contraseña
+Cada ingreso pide, además de la contraseña, un código de 6 dígitos. La primera vez eliges cómo
+recibirlo: con una **app autenticadora** (escaneas un código QR y la app muestra un código nuevo
+cada 30 segundos, incluso sin internet) o con un **código por correo**.
 
-1. En el inicio de sesión pulsa **¿Olvidaste tu contraseña?** y escribe el correo de tu cuenta.
-2. El panel responde siempre lo mismo, exista o no la cuenta, para no revelar qué correos están
-   registrados. Si existe, llega un correo del remitente «Calidad de afiliaciones» con el enlace
-   **Crear contraseña nueva**.
-3. El enlace vence en 30 minutos y sirve una sola vez. Escribe la nueva contraseña (mínimo 8
-   caracteres) y su confirmación, y vuelve a iniciar sesión.
-4. Al guardarla se cierran todas las sesiones abiertas con la contraseña anterior (en cualquier
-   equipo). Tu verificación en dos pasos no cambia: al ingresar te pedirá el código de siempre.
+![Pantalla del código de verificación con sus elementos numerados](img/manual/04-verificacion.png)
 
-Se pueden pedir como máximo 3 enlaces cada 15 minutos por correo; pedirlos no bloquea el ingreso.
+| # | Elemento | Qué hace |
+|:-:|---|---|
+| 1 | Código de 6 dígitos | Una casilla por dígito: puedes teclearlo o pegarlo completo. El anillo indica cuánto falta para que la app muestre otro código |
+| 2 | Verificar | Confirma el código y abre el tablero |
+| 3 | Perdí mi autenticador | Si ya no tienes la app, te envía un código al correo de tu cuenta para configurar una app nueva |
 
-### 4.3.2 Cambiar la contraseña
+**Perdí mi autenticador:** pulsa el enlace, escribe el código que llega a tu correo y escanea el
+nuevo código QR con tu app. La app anterior deja de servir en ese momento.
 
-Con la sesión iniciada, pulsa **Contraseña** en la barra superior. Escribe la contraseña actual,
-la nueva (mínimo 8 caracteres y distinta de la actual) y su confirmación. Tu sesión sigue
-abierta y se cierran las que tuvieras en otros equipos.
+### 5.4 Recuperar la contraseña
 
-### 4.3.3 Verificación en dos pasos (obligatoria)
+![Pantalla para pedir el enlace de recuperación](img/manual/05-recuperar.png)
 
-Cada ingreso pide, además de la contraseña, un código. La primera vez que ingresas (o al crear la
-cuenta) eliges cómo recibirlo:
+| # | Elemento | Qué hace |
+|:-:|---|---|
+| 1 | Correo | El correo de tu cuenta |
+| 2 | Enviar enlace | Envía a ese correo un enlace para crear una contraseña nueva |
 
-| Método | Cómo funciona |
+El mensaje es el mismo exista o no la cuenta. Abre el enlace del correo (vence en poco tiempo y
+sirve una sola vez), escribe la contraseña nueva (mínimo 8 caracteres) y vuelve a ingresar. Tu
+verificación en dos pasos sigue igual.
+
+## 6. Pantalla principal
+
+Al ingresar se abre el **Tablero de indicadores**.
+
+![Tablero de indicadores con sus partes numeradas](img/manual/06-pantalla-principal.png)
+
+| # | Elemento | Qué hace |
+|:-:|---|---|
+| 1 | Menú lateral | Lleva al tablero y, al pie, a Contraseña, Seguridad y Salir (ver 7. Navegación) |
+| 2 | Acciones | Generar datos de ejemplo, subir tus archivos y descargar en Excel o CSV |
+| 3 | Secciones | Saltan a cada parte del tablero: Resumen, Origen de datos, En el tiempo, Canales, Calidad, Territorio y Glosario |
+| 4 | Ver canal | Filtra todo el tablero por Todos, Digital, Físico o SAT |
+
+Debajo aparece el **Resumen ejecutivo**: la tarjeta principal con la producción consolidada y su
+curva por mes, y cinco indicadores con semáforo (verde, ámbar o rojo). El botón **?** de cada
+indicador explica qué mide y cuál es su referencia.
+
+## 7. Navegación
+
+En el computador el menú está a la izquierda. **Compactar menú** lo reduce a íconos (al pasar el
+cursor aparece el nombre de cada opción) y la preferencia se recuerda en ese equipo.
+
+![Menú lateral compacto](img/manual/07-navegacion.png)
+
+En la tablet en vertical y en el celular, el menú pasa a una **barra inferior** con Tablero,
+Seguridad y **Más**, que abre una hoja con Contraseña y Salir. El tablero se reacomoda al girar la
+pantalla.
+
+| Tablet en vertical | Celular con la hoja "Más" |
+|:-:|:-:|
+| ![Tablero en una tablet en vertical](img/manual/08-navegacion-tablet.png) | ![Celular con la hoja Más abierta](img/manual/09-navegacion-movil.png) |
+
+| Opción | Lleva a |
 |---|---|
-| **App autenticadora** (recomendado) | Escaneas un código QR con Google Authenticator, Microsoft Authenticator u otra app; desde ese momento la app muestra un código nuevo cada 30 segundos, incluso sin internet. Si no puedes escanear, escribe la clave que aparece bajo el QR. |
-| **Código por correo** | Cada vez que ingresas te llega un código de 6 dígitos que vence en 10 minutos y sirve una sola vez. |
+| Tablero | La pantalla principal |
+| Contraseña | El cambio de contraseña (9.1) |
+| Seguridad | Tus métodos de verificación (9.2) |
+| Salir | Cierra la sesión |
+| 🌙 / ☀️ | Alterna entre tema claro y oscuro |
 
-Confirma el método escribiendo el primer código. En cada ingreso siguiente aparece esta pantalla:
+## 8. Funcionalidades
 
-![Pantalla del código de verificación con sus partes numeradas](img/manual/07-verificacion.png)
+### 8.1 Crear: cargar datos
 
-| # | Campo | Qué hacer |
+Tienes dos formas de cargar datos. Cualquiera de las dos **reemplaza** lo que tenía tu cuenta y
+recalcula el tablero en unos segundos.
+
+![Opciones para cargar datos: generar de ejemplo o subir archivos](img/manual/10-crear.png)
+
+| # | Elemento | Qué hace |
 |:-:|---|---|
-| 1 | Código de 6 dígitos | El código que muestra tu app (o el que llegó a tu correo) |
-| 2 | Verificar | Abre tu tablero |
-| 3 | Perdí mi autenticador | Si ya no tienes la app, entra con un código enviado a tu correo (ver 4.3.4) |
+| 1 | 🎲 Generar datos de ejemplo | Crea un conjunto nuevo solo para tu cuenta. Cada clic simula un periodo distinto |
+| 2 | 📂 Elegir archivos | Abre la selección de tus archivos; al lado se indica cuántos elegiste |
+| 3 | Subir y procesar | Carga los archivos y corre la depuración |
 
-El código se escribe en **seis casillas**, una por dígito: puedes teclearlo o pegarlo completo.
-Un candado sobre el título se abre al enviar el código completo y se sacude si no es válido; con la
-app autenticadora, un anillo muestra cuántos segundos faltan para que la app cambie de código.
+**Archivos propios:** se suben los **6 archivos a la vez**, con su nombre exacto:
+`AFILIACIONES.csv`, `DIGITAL.csv`, `SAT.csv`, `PROCESO_IRL.csv`, `XML.csv` y
+`HOMOLOGACION_DOCUMENTOS.csv`. No se acepta una carga parcial.
 
-Desde **Seguridad** (menú lateral) puedes
-**agregar el método que no elegiste** y escoger cuál se pide **por defecto**; tener los dos te
-permite entrar aunque no tengas el teléfono a mano.
-
-### 4.3.4 Perdí mi autenticador
-
-Si cambiaste o perdiste el teléfono con la app autenticadora:
-
-1. Inicia sesión con tu correo y contraseña. En la pantalla **Escribe tu código** pulsa
-   **Perdí mi autenticador** (siempre está visible).
-2. Llega al correo de tu cuenta un código de 6 dígitos, aunque no hayas activado el método por
-   correo. Vence en 15 minutos y sirve una sola vez; si no llega, pulsa **Enviar otro código**.
-3. Escríbelo y pulsa **Continuar**. Antes de entrar debes escanear el código QR nuevo con tu app
-   y escribir el primer código: la app nueva reemplaza a la anterior, que deja de servir.
-
-Se pueden pedir pocos códigos seguidos y, tras varios códigos errados, la recuperación queda
-bloqueada unos minutos.
-
-### 4.4 Tablero de indicadores
-
-![Tablero con los botones de carga](img/manual/04-tablero.png)
-
-| # | Botón | Qué hace |
-|:-:|---|---|
-| 1 | 🎲 Generar datos de ejemplo | Crea un conjunto sintético nuevo **solo para tu cuenta** y recalcula los indicadores en unos segundos. Cada clic simula un periodo distinto (ver abajo) |
-| 2 | 📁 Subir mis archivos | Abre el formulario para cargar tus propios archivos (ver 3.5) |
-| 3 | 📊 Excel con tablas dinámicas | Descarga un libro con tu consolidado, medidas DAX y tablas dinámicas listas (ver 3.7) |
-| 4 | ⬇️ CSV | Descarga `consolidado.csv`, un archivo plano sin medidas ni tablas dinámicas |
-
-**Menú lateral.** A la izquierda están **Tablero** y, al pie, tu correo, **Contraseña**,
-**Seguridad** y **Salir**; una luz naranja marca la sección actual. **Compactar menú** lo reduce a
-solo íconos (al pasar el cursor aparece el nombre de cada uno) y la preferencia se recuerda en ese
-equipo.
-
-![Menú lateral compacto con el nombre de la opción al pasar el cursor](img/manual/08-menu-compacto.png)
-
-**En la tablet en vertical y en el celular** el menú se convierte en una **barra inferior**
-translúcida (Tablero, Seguridad y **Más**, que abre una hoja desde abajo con Contraseña y Salir).
-El tablero se reacomoda solo al girar la pantalla.
-
-![Tablero en una tablet en vertical](img/manual/09-tablet-vertical.png)
-
-![Tablero en el celular con la hoja Más abierta](img/manual/10-movil-mas.png)
-
-**Cada generación es distinta.** Además de cambiar las personas, cada clic sortea un *escenario*:
-cuánto aporta cada canal, el periodo (de 8 a 18 meses), la duplicidad, los rechazos y la calidad de
-los datos. El recuadro 🧪 arriba del tablero dice cuál salió, por ejemplo *«Campaña de afiliación»*
-(el canal digital se dispara y con él las radicaciones repetidas) o *«Migración de sistema»*
-(llegan documentos fuera de catálogo y territorios sin dato).
+**Datos de ejemplo:** cada generación sortea un escenario, que el recuadro 🧪 del tablero muestra:
 
 | Escenario | Qué cambia |
 |---|---|
@@ -221,140 +193,126 @@ los datos. El recuadro 🧪 arriba del tablero dice cuál salió, por ejemplo *�
 | Cierre con rechazos | Muchos trámites anulados, rechazados o sin prerradicar |
 | Migración de sistema | Documentos fuera de catálogo y territorios sin dato |
 
-### 4.5 Subir tus propios archivos
+### 8.2 Consultar: leer el tablero
 
-![Formulario para subir los seis archivos](img/manual/05-subir-archivos.png)
-
-| # | Campo | Qué escribir | Reglas |
-|:-:|---|---|---|
-| 1 | Seleccionar archivos | Los **6 archivos** de origen a la vez | Nombres exactos: `AFILIACIONES.csv`, `DIGITAL.csv`, `SAT.csv`, `PROCESO_IRL.csv`, `XML.csv` y `HOMOLOGACION_DOCUMENTOS.csv`. Máximo **50 MB** por archivo. No se acepta una carga parcial |
-| 2 | Subir y procesar | Botón | Reemplaza los datos que tuviera tu cuenta y corre el mismo proceso de depuración |
-
-### 4.6 Leer los resultados
-
-![Tablero completo con todos los bloques de indicadores](img/manual/06-tablero-completo.png)
-
-Arriba hay una barra fija con las secciones del tablero y el filtro **Ver canal** (Todos, Digital,
-Físico o SAT): al elegir un canal se recalculan los indicadores, los hallazgos, el embudo, la
-tendencia, el tipo de trámite, el estado, el régimen y el territorio, sin recargar la página.
+![Tablero completo con todas sus secciones](img/manual/11-consultar.png)
 
 | Sección | Qué responde |
 |---|---|
-| Resumen ejecutivo | Arriba, la **tarjeta principal** con la producción consolidada y una curva de los trámites por mes que marca el mes pico. Debajo, cinco indicadores con semáforo (verde, ámbar o rojo) y un anillo que muestra el porcentaje: producción efectiva, duplicidad multicanal e interna, calidad del dato y registros críticos. El botón **?** de cada uno explica qué mide y cuál es la referencia |
-| Lo más importante | Hallazgos escritos en frases sencillas, en una línea de tiempo con un punto del color de su estado: qué canal pesa más, cuánto se descartó, el mes pico, la fuente con más problemas |
-| De dónde salen los datos | Los seis archivos de origen con sus filas, los pasos del proceso y el embudo: recibidos → descartados por repetidos → consolidado → producción efectiva |
-| Producción en el tiempo | Trámites, producción efectiva y duplicados por mes. Si el último mes está incompleto, el tablero lo avisa |
-| Canales y tipo de trámite | Aporte y depuración por canal, reinscripción/traslado/afiliación nueva, estado del trámite y régimen |
-| Calidad por fuente | Semáforo de homologación, territorio y fecha válida por canal, y los tipos de documento fuera de catálogo |
-| Distribución territorial | Los departamentos con más trámites; "Sin dato" en rojo cuando falta el territorio |
-| Glosario | Qué significa cada término, en palabras sencillas |
+| Resumen ejecutivo | La producción consolidada y los cinco indicadores: producción efectiva, duplicidad multicanal, duplicidad interna, calidad del dato y registros críticos |
+| Lo más importante | Los hallazgos en frases sencillas: qué canal pesa más, cuánto se descartó, el mes pico |
+| De dónde salen los datos | Los seis archivos con sus filas, los pasos del proceso y el embudo: recibidos → descartados por repetidos → consolidado → producción efectiva |
+| Producción en el tiempo | Trámites, producción efectiva y duplicados por mes; avisa si el último mes está incompleto |
+| Canales y tipo de trámite | Aporte por canal, tipo de trámite, estado y régimen |
+| Calidad por fuente | Semáforo de homologación, territorio y fecha válida por canal, y documentos fuera de catálogo |
+| Distribución territorial | Departamentos con más trámites; "Sin dato" en rojo cuando falta el territorio |
+| Glosario | Qué significa cada término |
 
-Cada sección tiene un **¿Cómo leer esto?** que se despliega con la explicación, y en los gráficos
-puedes pasar el cursor (o tocar) para ver el valor exacto, o tocar la leyenda para ocultar una serie.
+Cada sección tiene un **¿Cómo leer esto?** con la explicación. En los gráficos, pasa el cursor (o
+toca) para ver el valor exacto, o toca la leyenda para ocultar una serie.
 
-### 4.7 Descargar el Excel con tablas dinámicas
+### 8.3 Modificar: cambiar la vista y los datos
 
-El botón **📊 Excel con tablas dinámicas** descarga `calidad_afiliaciones.xlsx`, con tres hojas:
+**Filtrar por canal.** En **Ver canal** elige Digital, Físico o SAT: todo el tablero (indicadores,
+hallazgos, embudo, gráficos y territorio) se recalcula sin recargar la página. **Todos** vuelve a
+la vista completa.
 
-| Hoja | Qué tiene |
-|---|---|
-| Inicio | Cómo usar el libro y la fórmula DAX de cada medida |
-| Tablero | Cuatro tablas dinámicas sobre el modelo de datos (resumen por canal, trámites por periodo y canal, tipo de trámite, departamento) con segmentaciones de **Canal** y **Régimen** |
-| Datos | Tu consolidado, una fila por afiliado, como tabla de Excel |
+![Tablero filtrado por el canal Digital](img/manual/12-modificar.png)
 
-La tabla entra al **modelo de datos** (Power Pivot) con 11 medidas DAX, por ejemplo
-`% Efectiva = DIVIDE([Producción efectiva], [Trámites])`. Al abrir el libro, Excel recarga el modelo
-y las tablas dinámicas con tus datos. Si llega en **Vista protegida**, pulsa **Habilitar edición**;
-si las tablas dinámicas siguen mostrando otras cifras, usa **Datos → Actualizar todo**. Para tus
-propios análisis: **Insertar → Tabla dinámica → Desde el modelo de datos** y arrastra las medidas.
+| # | Elemento | Qué hace |
+|:-:|---|---|
+| 1 | Canal elegido | El botón activo indica el canal que estás viendo; el subtítulo del resumen lo confirma |
 
-### 4.8 Preguntas frecuentes
+**Reemplazar los datos.** Para cambiar los datos de tu cuenta, vuelve a cargar con 8.1: la carga
+nueva reemplaza por completo a la anterior.
 
-**¿Por qué a veces aparece "En mantenimiento"?** La base se apaga sin uso para no generar costos
-y tarda unos minutos en volver a encenderse. La pantalla reintenta sola cada minuto (un anillo
-muestra los segundos que faltan), hasta cinco veces; después puedes pulsar **Reintentar**.
+### 8.4 Reportar: descargar Excel o CSV
 
-**¿Puedo instalarlo como aplicación?** Sí. En Chrome o Edge usa **Instalar aplicación** (ícono
-en la barra de direcciones o menú ⋮); en el iPhone, en Safari, **Compartir → Agregar a inicio**. Se
-abre en su propia ventana y entra directo al tablero.
+![Botones de descarga en Excel y CSV](img/manual/13-reportar.png)
 
-**¿Qué pasa si me quedo sin internet?** Aparece la pantalla **Sin conexión**, que reintenta sola
-cada pocos segundos (o con **Reintentar ahora**) y vuelve a la página cuando hay red.
+| # | Botón | Qué descarga |
+|:-:|---|---|
+| 1 | 📊 Excel con tablas dinámicas | `calidad_afiliaciones.xlsx` con tres hojas: **Inicio** (cómo usar el libro), **Tablero** (tablas dinámicas por canal, periodo, tipo de trámite y departamento, con segmentaciones de Canal y Régimen) y **Datos** (tu consolidado, una fila por afiliado) |
+| 2 | ⬇️ CSV | `consolidado.csv`: un archivo plano con el consolidado, sin tablas dinámicas |
 
-![Pantalla sin conexión con reintento automático](img/manual/12-sin-conexion.png)
+Al abrir el Excel, si aparece **Vista protegida**, pulsa **Habilitar edición**; si las tablas
+dinámicas muestran otras cifras, usa **Datos → Actualizar todo**.
 
-**Abrí un enlace y dice "Esta afiliación no está en el reporte".** La dirección no existe (un enlace
-viejo o mal copiado). Usa **Ver el tablero** o **Volver al inicio**; si tenías la sesión abierta,
-sigue abierta.
+## 9. Gestión de perfil
 
-![Página no encontrada](img/manual/11-no-encontrada.png)
+### 9.1 Cambiar contraseña
+
+![Formulario de cambio de contraseña con sus campos numerados](img/manual/14-contrasena.png)
+
+| # | Campo | Qué escribir |
+|:-:|---|---|
+| 1 | Contraseña actual | Tu contraseña de hoy |
+| 2 | Nueva contraseña | Mínimo 8 caracteres, distinta de la actual |
+| 3 | Confirma la nueva contraseña | La misma contraseña nueva |
+| 4 | Guardar contraseña | Guarda el cambio; tu sesión sigue abierta y se cierran las de otros equipos |
+
+### 9.2 Seguridad
+
+![Pantalla de seguridad con los métodos de verificación](img/manual/15-seguridad.png)
+
+| # | Método | Qué puedes hacer |
+|:-:|---|---|
+| 1 | App autenticadora | Ver si está activa y si es el método que se pide por defecto |
+| 2 | Código por correo | **Agregar** el método que te falta o **Pedir este por defecto** |
+
+Tener los dos métodos activos te permite entrar aunque no tengas el celular a mano.
+
+## 10. Mensajes frecuentes
+
+| Mensaje | Qué significa | Qué hacer |
+|---|---|---|
+| Correo o contraseña incorrectos | Los datos no coinciden | Revísalos o usa **¿Olvidaste tu contraseña?** |
+| El código no es correcto o ya venció. | El código escrito no es el vigente | Escribe el código que muestra ahora la app |
+| Las contraseñas no coinciden | La contraseña y su confirmación son distintas | Escríbelas de nuevo |
+| En mantenimiento | El servicio está encendiéndose o no responde | Espera: la pantalla reintenta sola y vuelve al tablero cuando el servicio responde |
+| Sin conexión | Tu equipo no tiene internet | La pantalla reintenta sola, o pulsa **Reintentar ahora** |
+| Esta afiliación no está en el reporte | La dirección que abriste no existe | Usa **Ver el tablero** o **Volver al inicio** |
+
+![Pantalla de página no encontrada](img/manual/16-no-encontrada.png)
+
+![Pantalla sin conexión con reintento automático](img/manual/17-sin-conexion.png)
+
+## 11. Preguntas frecuentes
+
+**¿Por qué a veces aparece "En mantenimiento" al entrar?** El servicio se suspende cuando nadie lo
+usa y tarda unos minutos en reactivarse. La pantalla reintenta sola.
 
 **¿Otra persona puede ver mis datos?** No. Cada cuenta ve solo lo que generó o subió.
 
-**¿Puedo borrar mis datos?** Al generar datos de ejemplo o subir archivos nuevos, se reemplaza
-todo lo que tenía tu cuenta.
+**¿Cómo borro mis datos?** Al generar datos de ejemplo o subir archivos nuevos se reemplaza todo
+lo que tenía tu cuenta.
 
-**¿Por qué cada vez que genero datos salen cifras distintas?** A propósito: cada generación simula
-un periodo diferente (ver el recuadro 🧪 del tablero), para que puedas ver cómo cambia el informe
-cuando cambian el volumen, la duplicidad o la calidad de los datos.
+**¿Por qué cada generación da cifras distintas?** A propósito: cada una simula un periodo diferente
+(ver el recuadro 🧪), para ver cómo cambia el informe cuando cambian el volumen, la duplicidad o la
+calidad.
 
-**El Excel abre con las tablas dinámicas vacías o con otras cifras.** Pulsa **Habilitar edición**
-si aparece la Vista protegida y, si hace falta, **Datos → Actualizar todo**. El libro necesita Excel
-de escritorio para Windows 2016 o posterior (Microsoft 365 incluido): Excel en la web y Excel para
-Mac no editan modelos de datos de Power Pivot.
+**El Excel abre con las tablas dinámicas vacías.** Pulsa **Habilitar edición** y luego
+**Datos → Actualizar todo**. Excel en la web y Excel para Mac no editan este tipo de libros.
 
-## 5. Seguridad: tu información protegida
+**¿Se puede instalar como aplicación?** Sí: en Chrome o Edge, **Instalar aplicación**; en iPhone,
+Safari → **Compartir → Agregar a inicio**.
 
-Tu confianza es lo primero: la plataforma solo pide los datos necesarios para funcionar, los protege y no los comparte con terceros. Esto es lo que se guarda y cómo se protege.
+**¿Dónde pido ayuda o reporto un problema?** Telegram [@lfac6](https://t.me/lfac6), WhatsApp
+[@carraian160](https://wa.me/carraian160) o [ariascluisf@hotmail.com](mailto:ariascluisf@hotmail.com).
 
-### Qué datos se guardan y dónde
+## 12. Glosario
 
-| Dato | Para qué se usa | Dónde se guarda | Cómo se protege |
-|---|---|---|---|
-| Correo | Identificar tu cuenta | Tabla `usuarios` en la base (TiDB Cloud) | Solo lo ves tú; no se muestra a otras cuentas |
-| Contraseña | Iniciar sesión | Tabla `usuarios`, **solo su huella** | Nunca se guarda en texto plano ni se puede recuperar |
-| Archivos CSV que subes | Calcular tus indicadores | Carpeta de tu cuenta en el contenedor y tablas de MySQL marcadas con tu `usuario_id` | Cada consulta filtra por tu cuenta |
-| Datos de ejemplo | Probar el panel | Igual que los archivos, marcados con tu `usuario_id` | Son sintéticos: no corresponden a personas reales |
-| Verificación en dos pasos | Confirmar que eres tú al ingresar | Tabla `usuarios`, columna `mfa`: clave de la app **cifrada** y código del correo **solo como huella** | Nadie: no se puede leer desde la base |
-| Sesión | Mantenerte conectado | Cookie `sesion` en tu navegador | Firmada e invisible para JavaScript; vence sola y deja de valer si cambias la contraseña |
-
-### Cómo se protege tu información
-
-Comprobado en el código del proyecto (`web/seguridad.py`, `web/main.py`, `proceso/conexion.py`):
-
-- **Verificación en dos pasos obligatoria** con app autenticadora (TOTP) o código por correo:
-  la clave de la app se guarda cifrada, un código no se acepta dos veces, los intentos errados
-  bloquean temporalmente y el código del correo vence en pocos minutos.
-- **Contraseñas protegidas.** Solo se guarda la huella; ni el administrador puede ver tu
-  contraseña.
-- **Sesión en una cookie segura** que vence sola. **Salir** la borra, y cambiar o restablecer la
-  contraseña cierra las sesiones abiertas.
-- **Recuperación segura:** el enlace de **¿Olvidaste tu contraseña?** vence y sirve una sola vez,
-  y **Perdí mi autenticador** exige la contraseña y un código enviado al correo de la cuenta antes
-  de registrar una app nueva.
-- **Aislamiento por cuenta.** Todas las tablas llevan `usuario_id` y cada consulta, carga o
-  exportación se limita a tu cuenta: dos cuentas nunca ven ni mezclan sus datos, aunque generen
-  datos al mismo tiempo.
-- **Consultas parametrizadas** contra MySQL (sin concatenar texto del usuario en el SQL), lo que
-  evita la inyección SQL.
-- **Plantillas con escape automático** (Jinja2): lo que escribes se muestra como texto, no como
-  código.
-- **Conexión cifrada a la base.** La conexión a la base usa TLS por defecto, y TiDB Cloud rechaza
-  conexiones sin cifrar.
-- **Carga controlada.** Solo se aceptan los 6 nombres de archivo esperados, con un máximo de 50 MB
-  cada uno.
-- **Secretos fuera del repositorio.** La clave JWT y los datos de conexión viven en variables de
-  entorno; el `.gitignore` bloquea cualquier CSV o `.xlsx` para que nunca se publiquen datos de
-  afiliados. La única excepción es la plantilla del Excel descargable, que solo trae 3 filas
-  inventadas: tus datos se escriben en el libro en memoria al descargarlo, nunca en el repositorio.
-- **Bloqueo temporal** ante intentos fallidos repetidos de contraseña o de código.
-- **Registro de eventos de seguridad:** ingresos, intentos fallidos, bloqueos y cambios de
-  contraseña quedan registrados (nunca contraseñas ni códigos) y se depuran solos.
-- **Al día en seguridad:** el runtime, el sistema y las dependencias se mantienen con los últimos
-  parches y se revisan periódicamente.
-
-## 6. Agradecimientos
-
-A mi familia, por su apoyo incondicional, su paciencia y por creer en cada proyecto incluso cuando apenas era una idea. Este trabajo también es de ustedes.
-
-Y a ti, que usas esta plataforma: cada prueba, comentario y sugerencia ayuda a que siga mejorando.
+| Término | Qué significa |
+|---|---|
+| **Afiliación única** | Una persona contada una sola vez, aunque haya llegado por varios canales |
+| **App autenticadora** | Aplicación del celular que muestra un código nuevo cada 30 segundos para confirmar que eres tú |
+| **Canal** | Vía por la que llegó la afiliación: digital, SAT o físico |
+| **Consolidado** | La lista final, con una fila por afiliado, después de depurar |
+| **CSV** | Archivo de texto con datos en columnas que se abre en Excel o Google Sheets |
+| **Duplicidad multicanal** | La misma persona radicó por más de un canal |
+| **Duplicidad interna** | La misma persona aparece varias veces en un mismo canal |
+| **Homologación** | Traducir los tipos de documento de cada canal a un solo código común |
+| **Producción efectiva** | La parte del consolidado que quedó radicada |
+| **Registro crítico** | Un registro con un problema que impide contarlo con confianza |
+| **Tabla dinámica** | Resumen de Excel que agrupa y suma los datos y se puede reorganizar |
+| **Verificación en dos pasos** | Además de la contraseña, se pide un código que solo tú puedes recibir |
