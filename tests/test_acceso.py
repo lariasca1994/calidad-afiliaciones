@@ -318,3 +318,15 @@ def test_correo_sin_nombre_no_envia_name_vacio(monkeypatch):
     assert capturado["to"] == [{"email": "a@ejemplo.com"}]
     assert correo.enviar("a@ejemplo.com", " Ana ", "Asunto", "texto", "<p>html</p>")
     assert capturado["to"] == [{"email": "a@ejemplo.com", "name": "Ana"}]
+
+
+def test_qr_escala_sin_recortarse():
+    """El QR debe traer viewBox y sin tamaño fijo: si no, el CSS (190 px) lo recorta y no se puede leer."""
+    import re
+    from web import mfa
+
+    qr = mfa.segno.make("otpauth://totp/x?secret=JBSWY3DPEHPK3PXP", error="m").svg_inline(
+        scale=5, dark="#0f172a", light="#ffffff", omitsize=True)
+    etiqueta = re.match(r"<svg[^>]*>", qr).group(0)
+    assert "viewBox" in etiqueta and "width=" not in etiqueta
+    assert "omitsize=True" in open(mfa.__file__, encoding="utf-8").read()

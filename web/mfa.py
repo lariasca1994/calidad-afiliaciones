@@ -163,7 +163,7 @@ def iniciar_totp(usuario) -> dict:
         f"otpauth://totp/{quote(EMISOR)}:{quote(usuario["email"])}"
         f"?secret={secreto}&issuer={quote(EMISOR)}&digits=6&period={_PASO}"
     )
-    return {"qr": segno.make(uri, error="m").svg_inline(scale=5, dark="#0f172a", light="#ffffff"), "secreto": secreto}
+    return {"qr": segno.make(uri, error="m").svg_inline(scale=5, dark="#0f172a", light="#ffffff", omitsize=True), "secreto": secreto}
 
 
 def _verificar_totp(usuario, secreto_cifrado: str | None, codigo: str) -> bool:

@@ -545,5 +545,5 @@ body.acceso {
 .ayuda-mfa { font-size: .88rem; opacity: .85; margin: .4rem 0 .9rem; }
 .enlace-boton { background: none; border: 0; padding: 0; margin-top: .75rem; color: inherit; font-weight: 600; cursor: pointer; text-decoration: underline; }
 .mfa-qr { display: flex; justify-content: center; padding: .75rem; background: #fff; border-radius: 10px; width: fit-content; margin: 0 auto; }
-.mfa-qr svg { display: block; width: 190px; height: 190px; }
+.mfa-qr svg { display: block; width: 190px; height: 190px; max-width: 100%; shape-rendering: crispEdges; }
 .mfa-clave { font-family: ui-monospace, monospace; word-break: break-all; font-size: .85em; }
