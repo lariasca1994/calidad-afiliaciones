@@ -293,3 +293,28 @@ def test_remitente_ignora_el_nombre_del_secreto(monkeypatch):
     finally:
         monkeypatch.undo()  # vuelve el valor original antes de recargar
         importlib.reload(correo)
+
+
+def test_correo_sin_nombre_no_envia_name_vacio(monkeypatch):
+    """Brevo rechaza con 400 un destinatario con "name" vacío (así fallaban los códigos)."""
+    import json
+    from web import correo
+
+    capturado = {}
+
+    class _Resp:
+        status = 201
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+
+    def falso_urlopen(pedido, timeout=0):
+        capturado.update(json.loads(pedido.data))
+        return _Resp()
+
+    monkeypatch.setattr(correo, "BREVO_API_KEY", "x")
+    monkeypatch.setattr(correo, "BREVO_REMITENTE", "remitente@ejemplo.com")
+    monkeypatch.setattr(correo.urllib.request, "urlopen", falso_urlopen)
+    assert correo.enviar("a@ejemplo.com", "", "Asunto", "texto", "<p>html</p>")
+    assert capturado["to"] == [{"email": "a@ejemplo.com"}]
+    assert correo.enviar("a@ejemplo.com", " Ana ", "Asunto", "texto", "<p>html</p>")
+    assert capturado["to"] == [{"email": "a@ejemplo.com", "name": "Ana"}]

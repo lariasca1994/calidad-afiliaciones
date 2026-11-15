@@ -6,6 +6,7 @@ Sin BREVO_API_KEY (desarrollo) no envía nada: escribe el mensaje en el log.
 import html
 import json
 import logging
+import urllib.error
 import urllib.request
 from email.utils import parseaddr
 
@@ -58,7 +59,8 @@ def enviar(destino: str, nombre: str, asunto: str, texto: str, html: str) -> boo
         return False
     cuerpo = json.dumps({
         "sender": {"email": BREVO_REMITENTE, "name": NOMBRE_REMITENTE},
-        "to": [{"email": destino, "name": nombre}],
+        # Brevo responde 400 si "name" va vacío: sin nombre, solo se manda el correo.
+        "to": [{"email": destino, "name": nombre.strip()} if nombre and nombre.strip() else {"email": destino}],
         "subject": asunto,
         "textContent": texto,
         "htmlContent": documento(asunto, html),
@@ -72,6 +74,13 @@ def enviar(destino: str, nombre: str, asunto: str, texto: str, html: str) -> boo
     try:
         with urllib.request.urlopen(pedido, timeout=20) as respuesta:
             return 200 <= respuesta.status < 300
+    except urllib.error.HTTPError as e:  # el motivo exacto que da Brevo queda en el log
+        try:
+            motivo = e.read().decode("utf-8", "replace")[:500]
+        except Exception:
+            motivo = ""
+        logger.error("Brevo no aceptó el correo (HTTP %s): %s", e.code, motivo)
+        return False
     except Exception:  # el usuario recibe la misma respuesta genérica igual
         logger.exception("Brevo no aceptó el correo")
         return False
