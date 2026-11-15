@@ -46,7 +46,12 @@
         nombre original: <code>AFILIACIONES.csv</code>, <code>DIGITAL.csv</code>, <code>SAT.csv</code>,
         <code>PROCESO_IRL.csv</code>, <code>XML.csv</code> y <code>HOMOLOGACION_DOCUMENTOS.csv</code>.
         Reemplazan los datos de ejemplo de tu cuenta.</p>
-    <input type="file" name="archivos" multiple required accept=".csv" />
+    <label class="tb-archivo">
+        <input type="file" name="archivos" multiple required accept=".csv" class="sr-only"
+               onchange="this.parentElement.querySelector('.tb-archivo-nombre').textContent = this.files.length ? (this.files.length === 1 ? '1 archivo elegido' : this.files.length + ' archivos elegidos') : 'Ningún archivo elegido'" />
+        <span class="tb-boton tb-boton--secundario">📂 Elegir archivos</span>
+        <span class="tb-archivo-nombre">Ningún archivo elegido</span>
+    </label>
     <button type="submit" class="tb-boton" onclick="return iniciarGeneracion(this)">Subir y procesar</button>
 </form>
 

@@ -973,3 +973,8 @@
 @media (prefers-reduced-motion: reduce) {
   .tb-heroe-curva svg, .tb-anillo .avance, .tb-hallazgos li, .tb-heroe-punto { animation: none; }
 }
+
+/* Selector de archivos propio (el del navegador sale en el idioma del sistema). */
+.tb-archivo { display: inline-flex; flex-wrap: wrap; align-items: center; gap: .75rem; cursor: pointer; }
+.tb-archivo:focus-within .tb-boton { outline: 2px solid var(--t-enlace); outline-offset: 2px; }
+.tb-archivo-nombre { font-size: .875rem; color: var(--t-suave, #6b635a); }
